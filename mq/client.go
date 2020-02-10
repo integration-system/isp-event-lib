@@ -12,8 +12,8 @@ import (
 
 const defaultTimeout = 10 * time.Second
 
-func NewRabbitClient() *rabbitMqClient {
-	return &rabbitMqClient{
+func NewRabbitClient() *RabbitMqClient {
+	return &RabbitMqClient{
 		publishers:                 make(map[string]*publisher),
 		oldPublishersConfiguration: make(map[string]Publisher),
 
@@ -25,7 +25,7 @@ func NewRabbitClient() *rabbitMqClient {
 	}
 }
 
-type rabbitMqClient struct {
+type RabbitMqClient struct {
 	cli        *cony.Client
 	lastConfig structure.RabbitConfig
 
@@ -39,7 +39,7 @@ type rabbitMqClient struct {
 	timeout time.Duration
 }
 
-func (r *rabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfig, opts ...Option) {
+func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfig, opts ...Option) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -113,17 +113,17 @@ func (r *rabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfi
 	go r.clientErrorsHandler()
 }
 
-func (r *rabbitMqClient) GetPublisher(name string) *publisher {
+func (r *RabbitMqClient) GetPublisher(name string) *publisher {
 	return r.publishers[name]
 }
 
-func (r *rabbitMqClient) Close() {
+func (r *RabbitMqClient) Close() {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	r.close()
 }
 
-func (r *rabbitMqClient) close() {
+func (r *RabbitMqClient) close() {
 	if len(r.publishers) != 0 {
 		for _, publisher := range r.publishers {
 			publisher.cancel()
@@ -148,7 +148,7 @@ func (r *rabbitMqClient) close() {
 	r.oldConsumersConfiguration = make(map[string]Consumer)
 }
 
-func (r *rabbitMqClient) consume(consumerConfig Consumer) *consumer {
+func (r *RabbitMqClient) consume(consumerConfig Consumer) *consumer {
 	conyConsumer := cony.NewConsumer(&cony.Queue{Name: consumerConfig.QueueName})
 	r.cli.Consume(conyConsumer)
 	newConsumer := createConsumer(conyConsumer, consumerConfig)
@@ -156,7 +156,7 @@ func (r *rabbitMqClient) consume(consumerConfig Consumer) *consumer {
 	return newConsumer
 }
 
-func (r *rabbitMqClient) publish(publisherConfig Publisher) *publisher {
+func (r *RabbitMqClient) publish(publisherConfig Publisher) *publisher {
 	if publisherConfig.Declare {
 		declarations := make([]cony.Declaration, 0)
 		var (
@@ -196,7 +196,7 @@ func (r *rabbitMqClient) publish(publisherConfig Publisher) *publisher {
 	return createPublisher(newPublisher)
 }
 
-func (r *rabbitMqClient) clientErrorsHandler() {
+func (r *RabbitMqClient) clientErrorsHandler() {
 	for r.cli.Loop() {
 		select {
 		case err := <-r.cli.Errors():
