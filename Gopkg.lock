@@ -120,6 +120,20 @@
   version = "v1.3.2"
 
 [[projects]]
+  digest = "1:0aeda02073125667ac6c9df50c7921cb22c08a4accdc54589c697a7e76be65c2"
+  name = "github.com/google/go-cmp"
+  packages = [
+    "cmp",
+    "cmp/internal/diff",
+    "cmp/internal/flags",
+    "cmp/internal/function",
+    "cmp/internal/value",
+  ]
+  pruneopts = "UT"
+  revision = "5a6f75716e1203a923a78c9efb94089d857df0f6"
+  version = "v0.4.0"
+
+[[projects]]
   digest = "1:c0d19ab64b32ce9fe5cf4ddceba78d5bc9807f0016db6b1183599da3dcc24d10"
   name = "github.com/hashicorp/hcl"
   packages = [
@@ -147,6 +161,14 @@
   revision = "244325e8836c364c86f308e3aef7e979cb007114"
 
 [[projects]]
+  digest = "1:dedeb66fb584490d10e95f3a17a51a9cac120309b0ecfab50f0b1a70ccab5177"
+  name = "github.com/integration-system/cony"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "fc7c71928b46ca0a5392e679c9293fe903a4d968"
+  version = "v0.2.0"
+
+[[projects]]
   digest = "1:70a2e3e22dfe9dbaf7864d6c47cef1d20e0f2277d6b09868e5c7c9af9a71c6f9"
   name = "github.com/integration-system/isp-lib"
   packages = [
@@ -169,6 +191,17 @@
   pruneopts = "UT"
   revision = "1c66c1b02151d8a8372bf7ffa0c116b74e8804e3"
   version = "v1.0.2"
+
+[[projects]]
+  branch = "master"
+  digest = "1:1789fb6e57949a6e4cacb74023cd30efb04b09dc6111d6ef3718241ebb23ebe9"
+  name = "github.com/integration-system/isp-log"
+  packages = [
+    ".",
+    "stdcodes",
+  ]
+  pruneopts = "UT"
+  revision = "a22bf2e0b56a9ef47db4a98756e39f700a99b688"
 
 [[projects]]
   digest = "1:ac7f1061abc812a5d0de6df7e3f477cef942aef503848f436da0f0eb2603bfbf"
@@ -384,6 +417,14 @@
   version = "v1.4.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:5ca236e4ecfeb92a57b7a4c7f139023384e7f726640f61b17820473cc82dfb77"
+  name = "github.com/streadway/amqp"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "1c71cc93ed716f9a6f4c2ae8955c25f9176d9f19"
+
+[[projects]]
   digest = "1:8548c309c65a85933a625be5e7d52b6ac927ca30c56869fae58123b8a77a75e1"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
@@ -398,6 +439,14 @@
   pruneopts = "UT"
   revision = "bb2702d423886830dee131692131d35648c382e2"
   version = "v0.5.2"
+
+[[projects]]
+  branch = "master"
+  digest = "1:bf2882632157bed0c88512e7258bbe31dda71822278346877742b763c64675c3"
+  name = "gitlab.alx/msp2.0/msp-event-lib"
+  packages = ["client"]
+  pruneopts = "UT"
+  revision = "9ebcf7fb9a62724448ca0b0dc204b8621027cac8"
 
 [[projects]]
   branch = "master"
@@ -489,16 +538,22 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/google/go-cmp/cmp",
+    "github.com/integration-system/cony",
     "github.com/integration-system/isp-lib-test/ctx",
     "github.com/integration-system/isp-lib-test/docker",
     "github.com/integration-system/isp-lib/structure",
+    "github.com/integration-system/isp-log",
+    "github.com/integration-system/isp-log/stdcodes",
     "github.com/json-iterator/go",
     "github.com/nats-io/nats.go",
     "github.com/nats-io/nuid",
     "github.com/nats-io/stan.go",
     "github.com/pkg/errors",
     "github.com/satori/go.uuid",
+    "github.com/streadway/amqp",
     "github.com/stretchr/testify/assert",
+    "gitlab.alx/msp2.0/msp-event-lib/client",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
