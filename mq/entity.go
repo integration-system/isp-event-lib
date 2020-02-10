@@ -1,4 +1,4 @@
-package rabbit
+package mq
 
 type (
 	Consumer struct {

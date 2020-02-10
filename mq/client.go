@@ -1,4 +1,4 @@
-package rabbit
+package mq
 
 import (
 	"github.com/google/go-cmp/cmp"
