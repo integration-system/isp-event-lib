@@ -2,6 +2,8 @@ package mq
 
 import "time"
 
+const defaultTimeout = 10 * time.Second
+
 type Option func(opt *options)
 
 type options struct {

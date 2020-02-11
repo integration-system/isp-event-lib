@@ -74,9 +74,9 @@ func main() {
 
 ## Implemented methods
 * `NewRabbitClient()`
-* `(*rabbitMqClient) ReceiveConfiguration()`
-* `(*rabbitMqClient) Close()`
-* `(*rabbitMqClient) GetPublisher()`
+* `(*RabbitMqClient) ReceiveConfiguration()`
+* `(*RabbitMqClient) Close()`
+* `(*RabbitMqClient) GetPublisher()`
 * `WithAwaitConsumersTimeout()`
 * `WithConsumers()`
 * `WithPublishers()`
@@ -92,7 +92,7 @@ func main() {
 client := NewRabbitClient()
 ```
 
-### `(*rabbitMqClient)  ReceiveConfiguration(rabbitConfig structure.RabbitConfig, opts ...Option)`
+### `(*RabbitMqClient)  ReceiveConfiguration(rabbitConfig structure.RabbitConfig, opts ...Option)`
 
 Инициализирует объект rabbitMqClient
 ```go
@@ -102,7 +102,7 @@ client.ReceiveConfiguration(rabbitClientConfiguration,
         )
 ```
 
-### `(*rabbitMqClient) Close()`
+### `(*RabbitMqClient) Close()`
 
 Прекращает взаимодействие с Rabbit
 ```go
@@ -110,7 +110,7 @@ client.Close()
 ```
 
 
-### `(*rabbitMqClient) GetPublisher(name string) *publisher`
+### `(*RabbitMqClient) GetPublisher(name string) *publisher`
 
 Возвращает объект, публикующий сообщения в очередь
 ```go

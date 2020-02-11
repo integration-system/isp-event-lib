@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-const defaultTimeout = 10 * time.Second
-
 func NewRabbitClient() *RabbitMqClient {
 	return &RabbitMqClient{
 		publishers:                 make(map[string]*publisher),
@@ -51,7 +49,7 @@ func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfi
 		)
 		err := cli.Ping(time.Second)
 		if err != nil {
-			log.Fatal(stdcodes.ReceiveErrorFromConfig, err)
+			log.Fatal(stdcodes.InitializingRabbitMqError, err)
 		}
 		r.cli = cli
 		r.lastConfig = rabbitConfig
@@ -60,7 +58,7 @@ func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfi
 		return
 	}
 
-	options := new(options)
+	options := defaultOptionals()
 	for _, option := range opts {
 		option(options)
 	}
@@ -71,7 +69,9 @@ func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfi
 	for key, publisher := range r.publishers {
 		newConfiguration, found := options.publishersConfig[key]
 		if found {
-			if !cmp.Equal(r.oldPublishersConfiguration[key], newConfiguration) {
+			if cmp.Equal(r.oldPublishersConfiguration[key], newConfiguration) {
+				newPublishers[key] = publisher
+			} else {
 				publisher.cancel()
 				newPublishers[key] = r.publish(newConfiguration)
 			}
@@ -90,7 +90,9 @@ func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfi
 	for key, consumer := range r.consumers {
 		newConfiguration, found := options.consumersConfig[key]
 		if found {
-			if !cmp.Equal(r.oldConsumersConfiguration[key], newConfiguration) {
+			if cmp.Equal(r.oldConsumersConfiguration[key], newConfiguration) {
+				newConsumers[key] = consumer
+			} else {
 				consumer.cancel()
 				awaitConsumer = append(awaitConsumer, consumer)
 				newConsumers[key] = r.consume(newConfiguration)
@@ -201,11 +203,15 @@ func (r *RabbitMqClient) clientErrorsHandler() {
 		select {
 		case err := <-r.cli.Errors():
 			if err != nil {
-				log.Warnf(stdcodes.ReceiveErrorFromConfig, "rabbitmq: err: %v", err)
+				log.WithMetadata(map[string]interface{}{
+					"message": err,
+				}).Warnf(stdcodes.RabbitMqClientError, "rabbitmq error")
 			}
 		case blocked := <-r.cli.Blocking():
 			if blocked.Active {
-				log.Warnf(stdcodes.ReceiveErrorFromConfig, "rabbitmq: blocked: %v", blocked.Reason)
+				log.WithMetadata(map[string]interface{}{
+					"message": blocked.Reason,
+				}).Warnf(stdcodes.RabbitMqBlockedConnection, "blocked")
 			}
 		}
 	}

@@ -19,6 +19,7 @@ func createConsumer(conyConsumer *cony.Consumer, configuration Consumer) *consum
 		consumer:     conyConsumer,
 		callback:     configuration.Callback,
 		errorHandler: configuration.ErrorHandler,
+		close:        make(chan struct{}),
 	}
 }
 
@@ -39,9 +40,7 @@ func (c *consumer) start() {
 }
 
 func (c *consumer) cancel() {
-	if c.close != nil {
-		close(c.close)
-	}
+	close(c.close)
 }
 
 func (c *consumer) wait(timeout time.Duration) {

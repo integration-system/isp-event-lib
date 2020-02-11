@@ -169,17 +169,16 @@
   version = "v0.2.0"
 
 [[projects]]
-  digest = "1:70a2e3e22dfe9dbaf7864d6c47cef1d20e0f2277d6b09868e5c7c9af9a71c6f9"
+  digest = "1:fbb0275517a429ce906ffb7a86d029c4ec12b61404441578ad86f29b43e608d9"
   name = "github.com/integration-system/isp-lib"
   packages = [
     "config",
-    "logger",
     "structure",
     "utils",
   ]
   pruneopts = "UT"
-  revision = "ec379c1305f381a22a2934d406f4e3c3e20ef0c2"
-  version = "v1.6.2"
+  revision = "4ea9449f1b3f2565b9038b0d4cdda3b02089aa8c"
+  version = "v2.1.0"
 
 [[projects]]
   digest = "1:ba4f6bd8283c6d170efb2e292fe961d646e32ca58a9bb0674ec8fb94be52517b"
@@ -194,14 +193,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:1789fb6e57949a6e4cacb74023cd30efb04b09dc6111d6ef3718241ebb23ebe9"
+  digest = "1:c82f47ba868adce09b74e6e66bb44b3e5c689cbe94959d28273d5a0eb2710470"
   name = "github.com/integration-system/isp-log"
   packages = [
     ".",
     "stdcodes",
   ]
   pruneopts = "UT"
-  revision = "a22bf2e0b56a9ef47db4a98756e39f700a99b688"
+  revision = "ad49cab587ef4ba83bc6e5c203ae0263b7e0b348"
 
 [[projects]]
   digest = "1:ac7f1061abc812a5d0de6df7e3f477cef942aef503848f436da0f0eb2603bfbf"
@@ -229,30 +228,6 @@
   pruneopts = "UT"
   revision = "de8848e004dd33dc07a2947b3d76f618a7fc7ef1"
   version = "v1.8.1"
-
-[[projects]]
-  digest = "1:7c084e0e780596dd2a7e20d25803909a9a43689c153de953520dfbc0b0e51166"
-  name = "github.com/mattn/go-colorable"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "8029fb3788e5a4a9c00e415f586a6d033f5d38b3"
-  version = "v0.1.2"
-
-[[projects]]
-  digest = "1:36325ebb862e0382f2f14feef409ba9351271b89ada286ae56836c603d43b59c"
-  name = "github.com/mattn/go-isatty"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "e1f7b56ace729e4a73a29a6b4fac6cd5fcda7ab3"
-  version = "v0.0.9"
-
-[[projects]]
-  branch = "master"
-  digest = "1:2b32af4d2a529083275afc192d1067d8126b578c7a9613b26600e4df9c735155"
-  name = "github.com/mgutz/ansi"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "9520e82c474b0a04dd04f8a40959027271bab992"
 
 [[projects]]
   digest = "1:53bc4cd4914cd7cd52139990d5170d6dc99067ae31c56530621b18b35fc30318"
@@ -433,14 +408,6 @@
   version = "v1.4.0"
 
 [[projects]]
-  digest = "1:39a425f98fb19427061a693fe6bf0683c9bddec4b25b17067e34fdb465e39cb9"
-  name = "github.com/x-cray/logrus-prefixed-formatter"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "bb2702d423886830dee131692131d35648c382e2"
-  version = "v0.5.2"
-
-[[projects]]
   branch = "master"
   digest = "1:bf2882632157bed0c88512e7258bbe31dda71822278346877742b763c64675c3"
   name = "gitlab.alx/msp2.0/msp-event-lib"
@@ -450,12 +417,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:412617dfb5e9b6070dec2497471ca36c6f114f91bb5391d13f3cf1b0304ffc2c"
+  digest = "1:cd7e85fc3687e062714febdee3e8efeb00a413a2a620d28908fd0258261d2353"
   name = "golang.org/x/crypto"
   packages = [
     "ed25519",
     "ed25519/internal/edwards25519",
-    "ssh/terminal",
   ]
   pruneopts = "UT"
   revision = "227b76d455e791cb042b03e633e2f7fbcfdf74a5"
