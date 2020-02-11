@@ -1,12 +1,12 @@
 package nats
 
 import (
+	"github.com/integration-system/isp-event-lib/client"
 	"github.com/integration-system/isp-lib/structure"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nuid"
 	"github.com/nats-io/stan.go"
 	"github.com/pkg/errors"
-	"gitlab.alx/msp2.0/msp-event-lib/client"
 	"sync"
 	"time"
 )

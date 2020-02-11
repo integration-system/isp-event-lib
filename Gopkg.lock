@@ -409,14 +409,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:bf2882632157bed0c88512e7258bbe31dda71822278346877742b763c64675c3"
-  name = "gitlab.alx/msp2.0/msp-event-lib"
-  packages = ["client"]
-  pruneopts = "UT"
-  revision = "9ebcf7fb9a62724448ca0b0dc204b8621027cac8"
-
-[[projects]]
-  branch = "master"
   digest = "1:cd7e85fc3687e062714febdee3e8efeb00a413a2a620d28908fd0258261d2353"
   name = "golang.org/x/crypto"
   packages = [
@@ -519,7 +511,6 @@
     "github.com/satori/go.uuid",
     "github.com/streadway/amqp",
     "github.com/stretchr/testify/assert",
-    "gitlab.alx/msp2.0/msp-event-lib/client",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
