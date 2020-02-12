@@ -1,14 +1,15 @@
 package nats
 
 import (
+	"sync"
+	"time"
+
 	"github.com/integration-system/isp-event-lib/client"
-	"github.com/integration-system/isp-lib/structure"
+	"github.com/integration-system/isp-lib/v2/structure"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nuid"
 	"github.com/nats-io/stan.go"
 	"github.com/pkg/errors"
-	"sync"
-	"time"
 )
 
 const (

@@ -2,8 +2,9 @@ package client
 
 import (
 	"fmt"
-	"github.com/integration-system/isp-lib/structure"
 	"strings"
+
+	"github.com/integration-system/isp-lib/v2/structure"
 )
 
 func GetId(prefix, moduleName string, outerAddress structure.AddressConfiguration) string {

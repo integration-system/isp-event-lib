@@ -1,13 +1,14 @@
 package mq
 
 import (
-	"github.com/google/go-cmp/cmp"
-	"github.com/integration-system/cony"
-	"github.com/integration-system/isp-lib/structure"
-	log "github.com/integration-system/isp-log"
-	"github.com/integration-system/isp-log/stdcodes"
 	"sync"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/integration-system/cony"
+	"github.com/integration-system/isp-lib/v2/structure"
+	log "github.com/integration-system/isp-log"
+	"github.com/integration-system/isp-log/stdcodes"
 )
 
 func NewRabbitClient() *RabbitMqClient {

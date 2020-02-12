@@ -1,16 +1,17 @@
 package nats
 
 import (
-	"github.com/integration-system/isp-event-lib/client"
-	"github.com/integration-system/isp-lib-test/ctx"
-	"github.com/integration-system/isp-lib-test/docker"
-	"github.com/integration-system/isp-lib/structure"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/integration-system/isp-event-lib/client"
+	"github.com/integration-system/isp-lib-test/ctx"
+	"github.com/integration-system/isp-lib-test/docker"
+	"github.com/integration-system/isp-lib/v2/structure"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
