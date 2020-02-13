@@ -39,6 +39,7 @@ func setup(_ *ctx.TestContext, runTest func() int) int {
 	if err != nil {
 		panic(err)
 	}
+	defer cli.Close()
 	natsCtx, err := cli.RunContainer(
 		natsImage,
 		docker.PullImage("", ""),
@@ -48,10 +49,10 @@ func setup(_ *ctx.TestContext, runTest func() int) int {
 			"8222": "8222",
 		}),
 	)
+	defer natsCtx.Close()
 	if err != nil {
 		panic(err)
 	}
-	defer natsCtx.Close()
 
 	time.Sleep(1 * time.Second)
 
@@ -72,7 +73,7 @@ func TestNatsEventBustClient_NewConsumer(t *testing.T) {
 		return
 	}
 
-	wg := sync.WaitGroup{}
+	wg := &sync.WaitGroup{}
 	wg.Add(4)
 	consumed := int32(0)
 
@@ -80,13 +81,13 @@ func TestNatsEventBustClient_NewConsumer(t *testing.T) {
 	if !assert.NoError(err) {
 		return
 	}
-	go awaitConsuming(consumer1, &wg, &consumed, assert)
+	go awaitConsuming(consumer1, wg, &consumed, assert)
 
 	consumer2, err := cli.NewConsumer("test", "second")
 	if !assert.NoError(err) {
 		return
 	}
-	go awaitConsuming(consumer2, &wg, &consumed, assert)
+	go awaitConsuming(consumer2, wg, &consumed, assert)
 
 	publisher := cli.NewPublisher("test")
 	err = publisher.Publish([]byte("test"))
@@ -126,23 +127,23 @@ func TestNatsEventBustClient_NewExclusiveConsumer(t *testing.T) {
 		return
 	}
 
-	wg := sync.WaitGroup{}
+	wg := &sync.WaitGroup{}
 	wg.Add(2)
 	consumed := int32(0)
 
-	consumer1, err := cli.NewExclusiveConsumer("test")
+	consumer1, err := cli.NewExclusiveConsumer("test2")
 	if !assert.NoError(err) {
 		return
 	}
-	go awaitConsuming(consumer1, &wg, &consumed, assert)
+	go awaitConsuming(consumer1, wg, &consumed, assert)
 
-	consumer2, err := cli.NewExclusiveConsumer("test")
+	consumer2, err := cli.NewExclusiveConsumer("test2")
 	if !assert.NoError(err) {
 		return
 	}
-	go awaitConsuming(consumer2, &wg, &consumed, assert)
+	go awaitConsuming(consumer2, wg, &consumed, assert)
 
-	publisher := cli.NewPublisher("test")
+	publisher := cli.NewPublisher("test2")
 	err = publisher.Publish([]byte("test"))
 	if !assert.NoError(err) {
 		return
