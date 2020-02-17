@@ -2,9 +2,10 @@ package mq
 
 type (
 	Consumer struct {
-		QueueName    string                  `schema:"Название очереди"`
-		Callback     func(delivery Delivery) `schema:"Функция обработки сообщения из очереди"`
-		ErrorHandler func(error)             `schema:"Функция обработки ошибки при чтении очереди"`
+		QueueName     string                  `schema:"Название очереди"`
+		PrefetchCount int                     `schema:"Количество предзагруженных сообщений"`
+		Callback      func(delivery Delivery) `schema:"Функция обработки сообщения из очереди"`
+		ErrorHandler  func(error)             `schema:"Функция обработки ошибки при чтении очереди"`
 	}
 
 	Publisher struct {

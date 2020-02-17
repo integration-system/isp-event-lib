@@ -152,7 +152,11 @@ func (r *RabbitMqClient) close() {
 }
 
 func (r *RabbitMqClient) consume(consumerConfig Consumer) *consumer {
-	conyConsumer := cony.NewConsumer(&cony.Queue{Name: consumerConfig.QueueName})
+	opts := make([]cony.ConsumerOpt, 0)
+	if consumerConfig.PrefetchCount > 0 {
+		opts = append(opts, cony.Qos(consumerConfig.PrefetchCount))
+	}
+	conyConsumer := cony.NewConsumer(&cony.Queue{Name: consumerConfig.QueueName}, opts...)
 	r.cli.Consume(conyConsumer)
 	newConsumer := createConsumer(conyConsumer, consumerConfig)
 	go newConsumer.start()
