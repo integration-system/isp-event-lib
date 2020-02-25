@@ -1,12 +1,21 @@
 package mq
 
 import (
-	"github.com/integration-system/cony"
 	"sync"
 	"time"
+
+	"github.com/integration-system/cony"
 )
 
-type consumer struct {
+type consumer interface {
+	start()
+	stop()
+	wait(timeout time.Duration)
+}
+
+var _ consumer = (*byOneConsumer)(nil)
+
+type byOneConsumer struct {
 	consumer     *cony.Consumer
 	callback     func(delivery Delivery)
 	errorHandler func(error)
@@ -14,16 +23,7 @@ type consumer struct {
 	close        chan struct{}
 }
 
-func createConsumer(conyConsumer *cony.Consumer, configuration Consumer) *consumer {
-	return &consumer{
-		consumer:     conyConsumer,
-		callback:     configuration.Callback,
-		errorHandler: configuration.ErrorHandler,
-		close:        make(chan struct{}),
-	}
-}
-
-func (c *consumer) start() {
+func (c *byOneConsumer) start() {
 	for {
 		select {
 		case delivery := <-c.consumer.Deliveries():
@@ -39,11 +39,11 @@ func (c *consumer) start() {
 	}
 }
 
-func (c *consumer) cancel() {
+func (c *byOneConsumer) stop() {
 	close(c.close)
 }
 
-func (c *consumer) wait(timeout time.Duration) {
+func (c *byOneConsumer) wait(timeout time.Duration) {
 	defer c.consumer.Cancel()
 	wait := make(chan struct{})
 	go func() {

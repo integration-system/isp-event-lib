@@ -7,12 +7,12 @@ const defaultTimeout = 10 * time.Second
 type Option func(opt *options)
 
 type options struct {
-	consumersConfig  map[string]Consumer
+	consumersConfig  map[string]ConsumerCfg
 	publishersConfig map[string]Publisher
 	timeout          time.Duration
 }
 
-func WithConsumers(consumers map[string]Consumer) Option {
+func WithConsumers(consumers map[string]ConsumerCfg) Option {
 	return func(opt *options) {
 		opt.consumersConfig = consumers
 	}
@@ -32,7 +32,7 @@ func WithAwaitConsumersTimeout(timeout time.Duration) Option {
 
 func defaultOptionals() *options {
 	return &options{
-		consumersConfig:  make(map[string]Consumer),
+		consumersConfig:  make(map[string]ConsumerCfg),
 		publishersConfig: make(map[string]Publisher),
 		timeout:          defaultTimeout,
 	}
