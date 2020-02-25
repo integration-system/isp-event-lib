@@ -62,7 +62,7 @@ func (c BatchingConsumerCfg) createConsumer(conyConsumer *cony.Consumer) consume
 	}
 }
 
-type Publisher struct {
+type PublisherCfg struct {
 	Exchange     string `schema:"Название точки маршрутизации"`
 	ExchangeType string `schema:"Тип точки маршрутизации,(direct, funout)"`
 	RoutingKey   string `valid:"required~Required" schema:"Ключ маршрутизации,для публикации напрямую в очередь, указывается название очереди"`

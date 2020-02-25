@@ -14,7 +14,7 @@ import (
 func NewRabbitClient() *RabbitMqClient {
 	return &RabbitMqClient{
 		publishers:                 make(map[string]*publisher),
-		oldPublishersConfiguration: make(map[string]Publisher),
+		oldPublishersConfiguration: make(map[string]PublisherCfg),
 
 		consumers:                 make(map[string]consumer),
 		oldConsumersConfiguration: make(map[string]ConsumerCfg),
@@ -29,7 +29,7 @@ type RabbitMqClient struct {
 	lastConfig structure.RabbitConfig
 
 	publishers                 map[string]*publisher
-	oldPublishersConfiguration map[string]Publisher
+	oldPublishersConfiguration map[string]PublisherCfg
 
 	consumers                 map[string]consumer
 	oldConsumersConfiguration map[string]ConsumerCfg
@@ -146,7 +146,7 @@ func (r *RabbitMqClient) close() {
 	}
 	r.lastConfig = structure.RabbitConfig{}
 	r.publishers = make(map[string]*publisher)
-	r.oldPublishersConfiguration = make(map[string]Publisher)
+	r.oldPublishersConfiguration = make(map[string]PublisherCfg)
 	r.consumers = make(map[string]consumer)
 	r.oldConsumersConfiguration = make(map[string]ConsumerCfg)
 }
@@ -164,7 +164,7 @@ func (r *RabbitMqClient) makeConsumer(consumerConfig ConsumerCfg) consumer {
 	return newConsumer
 }
 
-func (r *RabbitMqClient) makePublisher(publisherConfig Publisher) *publisher {
+func (r *RabbitMqClient) makePublisher(publisherConfig PublisherCfg) *publisher {
 	if publisherConfig.Declare {
 		declarations := make([]cony.Declaration, 0)
 		var (
