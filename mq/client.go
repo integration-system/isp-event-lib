@@ -14,10 +14,10 @@ import (
 func NewRabbitClient() *RabbitMqClient {
 	return &RabbitMqClient{
 		publishers:                 make(map[string]*publisher),
-		oldPublishersConfiguration: make(map[string]Publisher),
+		oldPublishersConfiguration: make(map[string]PublisherCfg),
 
-		consumers:                 make(map[string]*consumer),
-		oldConsumersConfiguration: make(map[string]Consumer),
+		consumers:                 make(map[string]consumer),
+		oldConsumersConfiguration: make(map[string]ConsumerCfg),
 
 		lastConfig: structure.RabbitConfig{},
 		lock:       sync.Mutex{},
@@ -29,10 +29,10 @@ type RabbitMqClient struct {
 	lastConfig structure.RabbitConfig
 
 	publishers                 map[string]*publisher
-	oldPublishersConfiguration map[string]Publisher
+	oldPublishersConfiguration map[string]PublisherCfg
 
-	consumers                 map[string]*consumer
-	oldConsumersConfiguration map[string]Consumer
+	consumers                 map[string]consumer
+	oldConsumersConfiguration map[string]ConsumerCfg
 
 	lock    sync.Mutex
 	timeout time.Duration
@@ -65,8 +65,8 @@ func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfi
 	}
 	r.timeout = options.timeout
 
-	newPublishers, newPublishersConfiguration := make(map[string]*publisher), make(map[string]Publisher)
-	newPublishersConfiguration = options.publishersConfig
+	newPublishers := make(map[string]*publisher)
+	newPublishersConfiguration := options.publishersConfig
 	for key, publisher := range r.publishers {
 		newConfiguration, found := options.publishersConfig[key]
 		if found {
@@ -74,7 +74,7 @@ func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfi
 				newPublishers[key] = publisher
 			} else {
 				publisher.cancel()
-				newPublishers[key] = r.publish(newConfiguration)
+				newPublishers[key] = r.makePublisher(newConfiguration)
 			}
 			delete(options.publishersConfig, key)
 		} else {
@@ -82,25 +82,25 @@ func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfi
 		}
 	}
 	for key, newConfiguration := range options.publishersConfig {
-		newPublishers[key] = r.publish(newConfiguration)
+		newPublishers[key] = r.makePublisher(newConfiguration)
 	}
 
-	newConsumers, newConsumersConfiguration := make(map[string]*consumer), make(map[string]Consumer)
-	awaitConsumer := make([]*consumer, 0)
-	newConsumersConfiguration = options.consumersConfig
+	newConsumers := make(map[string]consumer)
+	awaitConsumer := make([]consumer, 0)
+	newConsumersConfiguration := options.consumersConfig
 	for key, consumer := range r.consumers {
 		newConfiguration, found := options.consumersConfig[key]
 		if found {
 			if cmp.Equal(r.oldConsumersConfiguration[key], newConfiguration) {
 				newConsumers[key] = consumer
 			} else {
-				consumer.cancel()
+				consumer.stop()
 				awaitConsumer = append(awaitConsumer, consumer)
-				newConsumers[key] = r.consume(newConfiguration)
+				newConsumers[key] = r.makeConsumer(newConfiguration)
 			}
 			delete(options.consumersConfig, key)
 		} else {
-			consumer.cancel()
+			consumer.stop()
 			awaitConsumer = append(awaitConsumer, consumer)
 		}
 	}
@@ -108,7 +108,7 @@ func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfi
 		consumer.wait(r.timeout)
 	}
 	for key, newConfiguration := range options.consumersConfig {
-		newConsumers[key] = r.consume(newConfiguration)
+		newConsumers[key] = r.makeConsumer(newConfiguration)
 	}
 
 	r.consumers, r.oldConsumersConfiguration = newConsumers, newConsumersConfiguration
@@ -134,7 +134,7 @@ func (r *RabbitMqClient) close() {
 	}
 	if len(r.consumers) != 0 {
 		for _, consumer := range r.consumers {
-			consumer.cancel()
+			consumer.stop()
 		}
 		for _, consumer := range r.consumers {
 			consumer.wait(r.timeout)
@@ -146,24 +146,25 @@ func (r *RabbitMqClient) close() {
 	}
 	r.lastConfig = structure.RabbitConfig{}
 	r.publishers = make(map[string]*publisher)
-	r.oldPublishersConfiguration = make(map[string]Publisher)
-	r.consumers = make(map[string]*consumer)
-	r.oldConsumersConfiguration = make(map[string]Consumer)
+	r.oldPublishersConfiguration = make(map[string]PublisherCfg)
+	r.consumers = make(map[string]consumer)
+	r.oldConsumersConfiguration = make(map[string]ConsumerCfg)
 }
 
-func (r *RabbitMqClient) consume(consumerConfig Consumer) *consumer {
+func (r *RabbitMqClient) makeConsumer(consumerConfig ConsumerCfg) consumer {
 	opts := make([]cony.ConsumerOpt, 0)
-	if consumerConfig.PrefetchCount > 0 {
-		opts = append(opts, cony.Qos(consumerConfig.PrefetchCount))
+	cfg := consumerConfig.getCommon()
+	if cfg.PrefetchCount > 0 {
+		opts = append(opts, cony.Qos(cfg.PrefetchCount))
 	}
-	conyConsumer := cony.NewConsumer(&cony.Queue{Name: consumerConfig.QueueName}, opts...)
+	conyConsumer := cony.NewConsumer(&cony.Queue{Name: cfg.QueueName}, opts...)
 	r.cli.Consume(conyConsumer)
-	newConsumer := createConsumer(conyConsumer, consumerConfig)
+	newConsumer := consumerConfig.createConsumer(conyConsumer)
 	go newConsumer.start()
 	return newConsumer
 }
 
-func (r *RabbitMqClient) publish(publisherConfig Publisher) *publisher {
+func (r *RabbitMqClient) makePublisher(publisherConfig PublisherCfg) *publisher {
 	if publisherConfig.Declare {
 		declarations := make([]cony.Declaration, 0)
 		var (
