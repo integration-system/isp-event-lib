@@ -1,6 +1,7 @@
 package mq
 
 import (
+	"github.com/integration-system/isp-lib/v2/atomic"
 	"sync"
 	"time"
 
@@ -20,9 +21,9 @@ type batchConsumer struct {
 	errorHandler func(error)
 	size         int
 	purgeTimeout time.Duration
+	close        *atomic.AtomicBool
 
-	wg    sync.WaitGroup
-	close chan struct{}
+	wg sync.WaitGroup
 }
 
 func (c *batchConsumer) start() {
@@ -42,6 +43,12 @@ func (c *batchConsumer) start() {
 	for {
 		select {
 		case delivery, open := <-c.consumer.Deliveries():
+			if c.close.Get() {
+				c.handleBatch(deliveries[0:currentSize])
+				currentSize = 0
+				return
+			}
+
 			if !open {
 				return
 			}
@@ -54,24 +61,31 @@ func (c *batchConsumer) start() {
 				c.handleBatch(deliveries)
 				currentSize = 0
 			}
-
 		case err := <-c.consumer.Errors():
+			if c.close.Get() {
+				c.handleBatch(deliveries[0:currentSize])
+				currentSize = 0
+				return
+			}
+
 			if c.errorHandler != nil {
 				c.errorHandler(err)
 			}
 		case <-purgeTicker.C:
+			if c.close.Get() {
+				c.handleBatch(deliveries[0:currentSize])
+				currentSize = 0
+				return
+			}
+
 			c.handleBatch(deliveries[0:currentSize])
 			currentSize = 0
-		case <-c.close:
-			c.handleBatch(deliveries[0:currentSize])
-			currentSize = 0
-			return
 		}
 	}
 }
 
 func (c *batchConsumer) stop() {
-	close(c.close)
+	c.close.Set(true)
 }
 
 func (c *batchConsumer) handleBatch(deliveries []Delivery) {
@@ -81,12 +95,15 @@ func (c *batchConsumer) handleBatch(deliveries []Delivery) {
 	c.onBatch(deliveries)
 }
 
-func (c *batchConsumer) wait(timeout time.Duration) {
-	defer c.consumer.Cancel()
+func (c *batchConsumer) awaitCancel(timeout time.Duration) {
+	defer func() {
+		c.awaitStopDelivery(timeout)
+		c.consumer.Cancel()
+	}()
 	wait := make(chan struct{})
 	go func() {
-		defer close(wait)
 		c.wg.Wait()
+		close(wait)
 	}()
 
 	select {
@@ -94,5 +111,18 @@ func (c *batchConsumer) wait(timeout time.Duration) {
 		return
 	case <-wait:
 		return
+	}
+}
+
+func (c *batchConsumer) awaitStopDelivery(timeout time.Duration) {
+	for {
+		select {
+		case _, open := <-c.consumer.Deliveries():
+			if !open {
+				return
+			}
+		case <-time.After(timeout):
+			return
+		}
 	}
 }

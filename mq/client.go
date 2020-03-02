@@ -13,11 +13,11 @@ import (
 
 func NewRabbitClient() *RabbitMqClient {
 	return &RabbitMqClient{
-		publishers:                 make(map[string]*publisher),
-		oldPublishersConfiguration: make(map[string]PublisherCfg),
+		publishers:              make(map[string]*publisher),
+		publishersConfiguration: make(map[string]PublisherCfg),
 
-		consumers:                 make(map[string]consumer),
-		oldConsumersConfiguration: make(map[string]ConsumerCfg),
+		consumers:              make(map[string]consumer),
+		consumersConfiguration: make(map[string]ConsumerCfg),
 
 		lastConfig: structure.RabbitConfig{},
 		lock:       sync.Mutex{},
@@ -28,11 +28,11 @@ type RabbitMqClient struct {
 	cli        *cony.Client
 	lastConfig structure.RabbitConfig
 
-	publishers                 map[string]*publisher
-	oldPublishersConfiguration map[string]PublisherCfg
+	publishers              map[string]*publisher
+	publishersConfiguration map[string]PublisherCfg
 
-	consumers                 map[string]consumer
-	oldConsumersConfiguration map[string]ConsumerCfg
+	consumers              map[string]consumer
+	consumersConfiguration map[string]ConsumerCfg
 
 	lock    sync.Mutex
 	timeout time.Duration
@@ -65,54 +65,17 @@ func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfi
 	}
 	r.timeout = options.timeout
 
-	newPublishers := make(map[string]*publisher)
-	newPublishersConfiguration := options.publishersConfig
-	for key, publisher := range r.publishers {
-		newConfiguration, found := options.publishersConfig[key]
-		if found {
-			if cmp.Equal(r.oldPublishersConfiguration[key], newConfiguration) {
-				newPublishers[key] = publisher
-			} else {
-				publisher.cancel()
-				newPublishers[key] = r.makePublisher(newConfiguration)
-			}
-			delete(options.publishersConfig, key)
-		} else {
-			publisher.cancel()
-		}
+	newPublishers, oldPublishers := r.newPublishers(options.publishersConfiguration)
+	newConsumers, oldConsumers := r.newConsumers(options.consumersConfiguration)
+	for _, c := range oldConsumers {
+		c.awaitCancel(r.timeout)
 	}
-	for key, newConfiguration := range options.publishersConfig {
-		newPublishers[key] = r.makePublisher(newConfiguration)
+	for _, p := range oldPublishers {
+		p.cancel()
 	}
 
-	newConsumers := make(map[string]consumer)
-	awaitConsumer := make([]consumer, 0)
-	newConsumersConfiguration := options.consumersConfig
-	for key, consumer := range r.consumers {
-		newConfiguration, found := options.consumersConfig[key]
-		if found {
-			if cmp.Equal(r.oldConsumersConfiguration[key], newConfiguration) {
-				newConsumers[key] = consumer
-			} else {
-				consumer.stop()
-				awaitConsumer = append(awaitConsumer, consumer)
-				newConsumers[key] = r.makeConsumer(newConfiguration)
-			}
-			delete(options.consumersConfig, key)
-		} else {
-			consumer.stop()
-			awaitConsumer = append(awaitConsumer, consumer)
-		}
-	}
-	for _, consumer := range awaitConsumer {
-		consumer.wait(r.timeout)
-	}
-	for key, newConfiguration := range options.consumersConfig {
-		newConsumers[key] = r.makeConsumer(newConfiguration)
-	}
-
-	r.consumers, r.oldConsumersConfiguration = newConsumers, newConsumersConfiguration
-	r.publishers, r.oldPublishersConfiguration = newPublishers, newPublishersConfiguration
+	r.consumers, r.consumersConfiguration = newConsumers, options.consumersConfiguration
+	r.publishers, r.publishersConfiguration = newPublishers, options.publishersConfiguration
 	go r.clientErrorsHandler()
 }
 
@@ -126,6 +89,43 @@ func (r *RabbitMqClient) Close() {
 	r.close()
 }
 
+func (r *RabbitMqClient) newPublishers(config map[string]PublisherCfg) (map[string]*publisher, map[string]*publisher) {
+	newPublishers, oldPublisher := make(map[string]*publisher), make(map[string]*publisher)
+	for key, publisher := range r.publishers {
+		newConfiguration, found := config[key]
+		if found && cmp.Equal(r.publishersConfiguration[key], newConfiguration) {
+			newPublishers[key] = publisher
+		} else {
+			oldPublisher[key] = publisher
+		}
+	}
+	for key, newConfiguration := range config {
+		if _, found := newPublishers[key]; !found {
+			newPublishers[key] = r.makePublisher(newConfiguration)
+		}
+	}
+	return newPublishers, oldPublisher
+}
+
+func (r *RabbitMqClient) newConsumers(config map[string]ConsumerCfg) (map[string]consumer, map[string]consumer) {
+	newConsumers, oldConsumer := make(map[string]consumer), make(map[string]consumer)
+	for key, consumer := range r.consumers {
+		newConfiguration, found := config[key]
+		if found && cmp.Equal(r.consumersConfiguration[key], newConfiguration) {
+			newConsumers[key] = consumer
+		} else {
+			consumer.stop()
+			oldConsumer[key] = consumer
+		}
+	}
+	for key, newConfiguration := range config {
+		if _, found := newConsumers[key]; !found {
+			newConsumers[key] = r.makeConsumer(newConfiguration)
+		}
+	}
+	return newConsumers, oldConsumer
+}
+
 func (r *RabbitMqClient) close() {
 	if len(r.publishers) != 0 {
 		for _, publisher := range r.publishers {
@@ -137,7 +137,7 @@ func (r *RabbitMqClient) close() {
 			consumer.stop()
 		}
 		for _, consumer := range r.consumers {
-			consumer.wait(r.timeout)
+			consumer.awaitCancel(r.timeout)
 		}
 	}
 	if r.cli != nil {
@@ -146,9 +146,9 @@ func (r *RabbitMqClient) close() {
 	}
 	r.lastConfig = structure.RabbitConfig{}
 	r.publishers = make(map[string]*publisher)
-	r.oldPublishersConfiguration = make(map[string]PublisherCfg)
+	r.publishersConfiguration = make(map[string]PublisherCfg)
 	r.consumers = make(map[string]consumer)
-	r.oldConsumersConfiguration = make(map[string]ConsumerCfg)
+	r.consumersConfiguration = make(map[string]ConsumerCfg)
 }
 
 func (r *RabbitMqClient) makeConsumer(consumerConfig ConsumerCfg) consumer {

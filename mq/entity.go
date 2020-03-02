@@ -1,9 +1,9 @@
 package mq
 
 import (
-	"time"
-
 	"github.com/integration-system/cony"
+	"github.com/integration-system/isp-lib/v2/atomic"
+	"time"
 )
 
 type ConsumerCfg interface {
@@ -33,7 +33,7 @@ func (c ByOneConsumerCfg) createConsumer(conyConsumer *cony.Consumer) consumer {
 		consumer:     conyConsumer,
 		callback:     c.Callback,
 		errorHandler: c.ErrorHandler,
-		close:        make(chan struct{}),
+		close:        atomic.NewAtomicBool(false),
 	}
 }
 
@@ -58,7 +58,7 @@ func (c BatchingConsumerCfg) createConsumer(conyConsumer *cony.Consumer) consume
 		purgeTimeout: c.PurgeTimeoutMs * time.Millisecond,
 		size:         c.BatchSize,
 		errorHandler: c.ErrorHandler,
-		close:        make(chan struct{}),
+		close:        atomic.NewAtomicBool(false),
 	}
 }
 

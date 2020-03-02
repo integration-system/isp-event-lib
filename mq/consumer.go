@@ -1,16 +1,16 @@
 package mq
 
 import (
+	"github.com/integration-system/cony"
+	"github.com/integration-system/isp-lib/v2/atomic"
 	"sync"
 	"time"
-
-	"github.com/integration-system/cony"
 )
 
 type consumer interface {
 	start()
 	stop()
-	wait(timeout time.Duration)
+	awaitCancel(timeout time.Duration)
 }
 
 var _ consumer = (*byOneConsumer)(nil)
@@ -19,36 +19,43 @@ type byOneConsumer struct {
 	consumer     *cony.Consumer
 	callback     func(delivery Delivery)
 	errorHandler func(error)
+	close        *atomic.AtomicBool
 	wg           sync.WaitGroup
-	close        chan struct{}
 }
 
 func (c *byOneConsumer) start() {
 	for {
 		select {
 		case delivery := <-c.consumer.Deliveries():
+			if c.close.Get() {
+				return
+			}
 			c.wg.Add(1)
 			c.callback(Delivery{wg: &c.wg, delivery: delivery})
 		case err := <-c.consumer.Errors():
+			if c.close.Get() {
+				return
+			}
 			if c.errorHandler != nil {
 				c.errorHandler(err)
 			}
-		case <-c.close:
-			return
 		}
 	}
 }
 
 func (c *byOneConsumer) stop() {
-	close(c.close)
+	c.close.Set(true)
 }
 
-func (c *byOneConsumer) wait(timeout time.Duration) {
-	defer c.consumer.Cancel()
+func (c *byOneConsumer) awaitCancel(timeout time.Duration) {
+	defer func() {
+		c.consumer.Cancel()
+		c.awaitStopDelivery(timeout)
+	}()
 	wait := make(chan struct{})
 	go func() {
-		defer close(wait)
 		c.wg.Wait()
+		close(wait)
 	}()
 
 	select {
@@ -56,5 +63,18 @@ func (c *byOneConsumer) wait(timeout time.Duration) {
 		return
 	case <-wait:
 		return
+	}
+}
+
+func (c *byOneConsumer) awaitStopDelivery(timeout time.Duration) {
+	for {
+		select {
+		case _, open := <-c.consumer.Deliveries():
+			if !open {
+				return
+			}
+		case <-time.After(timeout):
+			return
+		}
 	}
 }
