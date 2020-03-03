@@ -52,10 +52,15 @@ func (c *byOneConsumer) awaitCancel(timeout time.Duration) {
 		c.consumer.Cancel()
 		c.awaitStopDelivery(timeout)
 	}()
+
 	wait := make(chan struct{})
 	go func() {
-		c.wg.Wait()
-		close(wait)
+		for {
+			if c.doWait() {
+				close(wait)
+				return
+			}
+		}
 	}()
 
 	select {
@@ -64,6 +69,19 @@ func (c *byOneConsumer) awaitCancel(timeout time.Duration) {
 	case <-wait:
 		return
 	}
+}
+
+func (c *byOneConsumer) doWait() (waitComplete bool) {
+	defer func() {
+		r := recover() //panic("sync: WaitGroup is reused before previous Wait has returned")
+		if r != nil {
+			waitComplete = false
+		}
+	}()
+
+	waitComplete = true
+	c.wg.Wait()
+	return waitComplete
 }
 
 func (c *byOneConsumer) awaitStopDelivery(timeout time.Duration) {
