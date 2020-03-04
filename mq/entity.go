@@ -7,7 +7,7 @@ import (
 )
 
 type ConsumerCfg interface {
-	createConsumer(*cony.Consumer) consumer
+	createConsumer(*cony.Consumer, func(*cony.Consumer)) consumer
 	getCommon() CommonConsumerCfg
 }
 
@@ -28,12 +28,15 @@ func (c ByOneConsumerCfg) getCommon() CommonConsumerCfg {
 	return c.CommonConsumerCfg
 }
 
-func (c ByOneConsumerCfg) createConsumer(conyConsumer *cony.Consumer) consumer {
+func (c ByOneConsumerCfg) createConsumer(conyConsumer *cony.Consumer, reConsume func(*cony.Consumer)) consumer {
 	return &byOneConsumer{
 		consumer:     conyConsumer,
 		callback:     c.Callback,
 		errorHandler: c.ErrorHandler,
 		close:        atomic.NewAtomicBool(false),
+		reConsume:    reConsume,
+		bo:           cony.DefaultBackoff,
+		attempt:      atomic.NewAtomicInt(0),
 	}
 }
 
@@ -51,7 +54,7 @@ func (c BatchingConsumerCfg) getCommon() CommonConsumerCfg {
 	return c.CommonConsumerCfg
 }
 
-func (c BatchingConsumerCfg) createConsumer(conyConsumer *cony.Consumer) consumer {
+func (c BatchingConsumerCfg) createConsumer(conyConsumer *cony.Consumer, reConsume func(*cony.Consumer)) consumer {
 	return &batchConsumer{
 		consumer:     conyConsumer,
 		onBatch:      c.Callback,
@@ -59,6 +62,9 @@ func (c BatchingConsumerCfg) createConsumer(conyConsumer *cony.Consumer) consume
 		size:         c.BatchSize,
 		errorHandler: c.ErrorHandler,
 		close:        atomic.NewAtomicBool(false),
+		reConsume:    reConsume,
+		bo:           cony.DefaultBackoff,
+		attempt:      atomic.NewAtomicInt(0),
 	}
 }
 

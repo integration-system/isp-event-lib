@@ -3,6 +3,7 @@ package mq
 import (
 	"github.com/integration-system/cony"
 	"github.com/integration-system/isp-lib/v2/atomic"
+	"github.com/streadway/amqp"
 	"sync"
 	"time"
 )
@@ -19,8 +20,13 @@ type byOneConsumer struct {
 	consumer     *cony.Consumer
 	callback     func(delivery Delivery)
 	errorHandler func(error)
-	close        *atomic.AtomicBool
-	wg           sync.WaitGroup
+
+	close *atomic.AtomicBool
+	wg    sync.WaitGroup
+
+	reConsume func(consumer *cony.Consumer)
+	bo        cony.Backoffer
+	attempt   *atomic.AtomicInt
 }
 
 func (c *byOneConsumer) start() {
@@ -38,6 +44,12 @@ func (c *byOneConsumer) start() {
 			}
 			if c.errorHandler != nil {
 				c.errorHandler(err)
+			}
+			if e, ok := err.(*amqp.Error); ok {
+				if e.Code == amqp.NotFound {
+					time.Sleep(c.bo.Backoff(c.attempt.IncAndGet()))
+					c.reConsume(c.consumer)
+				}
 			}
 		}
 	}

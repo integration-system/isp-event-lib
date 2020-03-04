@@ -159,7 +159,7 @@ func (r *RabbitMqClient) makeConsumer(consumerConfig ConsumerCfg) consumer {
 	}
 	conyConsumer := cony.NewConsumer(&cony.Queue{Name: cfg.QueueName}, opts...)
 	r.cli.Consume(conyConsumer)
-	newConsumer := consumerConfig.createConsumer(conyConsumer)
+	newConsumer := consumerConfig.createConsumer(conyConsumer, r.cli.Consume)
 	go newConsumer.start()
 	return newConsumer
 }
