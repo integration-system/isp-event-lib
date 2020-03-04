@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/google/go-cmp v0.4.0
-	github.com/integration-system/cony v0.2.0
+	github.com/integration-system/cony v0.3.0
 	github.com/integration-system/isp-lib-test v1.5.0
 	github.com/integration-system/isp-lib/v2 v2.2.0
 	github.com/integration-system/isp-log v1.0.0

@@ -28,7 +28,6 @@ type batchConsumer struct {
 
 	reConsume func(consumer *cony.Consumer)
 	bo        cony.Backoffer
-	attempt   *atomic.AtomicInt
 }
 
 func (c *batchConsumer) start() {
@@ -43,7 +42,7 @@ func (c *batchConsumer) start() {
 	defer purgeTicker.Stop()
 
 	deliveries := make([]Delivery, c.size)
-	currentSize := 0
+	currentSize, attempt := 0, 0
 
 	for {
 		select {
@@ -75,7 +74,8 @@ func (c *batchConsumer) start() {
 
 			if e, ok := err.(*amqp.Error); ok {
 				if e.Code == amqp.NotFound {
-					time.Sleep(c.bo.Backoff(c.attempt.IncAndGet()))
+					attempt++
+					time.Sleep(c.bo.Backoff(attempt))
 					c.reConsume(c.consumer)
 				}
 			}

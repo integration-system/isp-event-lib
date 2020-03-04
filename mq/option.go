@@ -9,6 +9,7 @@ type Option func(opt *options)
 type options struct {
 	consumersConfiguration  map[string]ConsumerCfg
 	publishersConfiguration map[string]PublisherCfg
+	declareConfiguration    DeclareCfg
 	timeout                 time.Duration
 }
 
@@ -21,6 +22,12 @@ func WithConsumers(consumers map[string]ConsumerCfg) Option {
 func WithPublishers(publishers map[string]PublisherCfg) Option {
 	return func(opt *options) {
 		opt.publishersConfiguration = publishers
+	}
+}
+
+func WithDeclares(declare DeclareCfg) Option {
+	return func(opt *options) {
+		opt.declareConfiguration = declare
 	}
 }
 

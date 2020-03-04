@@ -117,6 +117,8 @@ github.com/integration-system/bellows v0.0.0-20190821124023-244325e8836c h1:yyIH
 github.com/integration-system/bellows v0.0.0-20190821124023-244325e8836c/go.mod h1:6cf4ZNvtzZ/KMiuc+d5Y7rSHjzlYBWEqbVyDfUDhqIE=
 github.com/integration-system/cony v0.2.0 h1:c5zfBx+iQTRnrFrc7OKI2ul6ZSE6H2+B/UG8Kl4QEeg=
 github.com/integration-system/cony v0.2.0/go.mod h1:rSjLLI3S+yGbnPJPTSe+YKaOjMj4c/4SixB6N5eLnKM=
+github.com/integration-system/cony v0.3.0 h1:wSDrThUe7JdI1kUo1PBQ+TdYcGkrPzfbV01bBC6mpbQ=
+github.com/integration-system/cony v0.3.0/go.mod h1:3DTgNOKVMPhFyI0CD85HlIfeP29x3h7hAK0XLsg4mww=
 github.com/integration-system/go-cmp v0.0.0-20190131081942-ac5582987a2f/go.mod h1:w+dmaWojuIwNujSYg6qt1wKHhSdorLOivCEl/XuLzbM=
 github.com/integration-system/gowsdl v1.0.0/go.mod h1:ZwTCE+Av5aQLnPj2/3PIop6mzCs1FY7jXrcWDvSjrBA=
 github.com/integration-system/isp-etp-go v2.0.2+incompatible/go.mod h1:NdgczkoFCer9SZOx674EVXCcKRIhFe8LYnwNwoIMDhI=

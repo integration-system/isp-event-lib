@@ -34,6 +34,8 @@ type RabbitMqClient struct {
 	consumers              map[string]consumer
 	consumersConfiguration map[string]ConsumerCfg
 
+	declareConfiguration DeclareCfg
+
 	lock    sync.Mutex
 	timeout time.Duration
 }
@@ -65,6 +67,7 @@ func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfi
 	}
 	r.timeout = options.timeout
 
+	r.declare(options.declareConfiguration)
 	newPublishers, oldPublishers := r.newPublishers(options.publishersConfiguration)
 	newConsumers, oldConsumers := r.newConsumers(options.consumersConfiguration)
 	for _, c := range oldConsumers {
@@ -76,6 +79,7 @@ func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfi
 
 	r.consumers, r.consumersConfiguration = newConsumers, options.consumersConfiguration
 	r.publishers, r.publishersConfiguration = newPublishers, options.publishersConfiguration
+	r.declareConfiguration = options.declareConfiguration
 	go r.clientErrorsHandler()
 }
 
@@ -151,57 +155,117 @@ func (r *RabbitMqClient) close() {
 	r.consumersConfiguration = make(map[string]ConsumerCfg)
 }
 
-func (r *RabbitMqClient) makeConsumer(consumerConfig ConsumerCfg) consumer {
+func (r *RabbitMqClient) makeConsumer(consumer ConsumerCfg) consumer {
 	opts := make([]cony.ConsumerOpt, 0)
-	cfg := consumerConfig.getCommon()
+	cfg := consumer.getCommon()
 	if cfg.PrefetchCount > 0 {
 		opts = append(opts, cony.Qos(cfg.PrefetchCount))
 	}
 	conyConsumer := cony.NewConsumer(&cony.Queue{Name: cfg.QueueName}, opts...)
 	r.cli.Consume(conyConsumer)
-	newConsumer := consumerConfig.createConsumer(conyConsumer, r.cli.Consume)
+	newConsumer := consumer.createConsumer(conyConsumer, r.cli.Consume)
 	go newConsumer.start()
 	return newConsumer
 }
 
-func (r *RabbitMqClient) makePublisher(publisherConfig PublisherCfg) *publisher {
-	if publisherConfig.Declare {
-		declarations := make([]cony.Declaration, 0)
-		var (
-			exchange *cony.Exchange
-			queue    *cony.Queue
-		)
-		if publisherConfig.Exchange != "" {
-			exchange = &cony.Exchange{
-				Name:       publisherConfig.Exchange,
-				Durable:    true,
-				AutoDelete: false,
-				Kind:       publisherConfig.ExchangeType,
-			}
-			declarations = append(declarations, cony.DeclareExchange(*exchange))
-		}
-		if publisherConfig.QueueName != "" {
-			queue = &cony.Queue{
-				Name:       publisherConfig.QueueName,
-				Durable:    true,
-				AutoDelete: false,
-				Exclusive:  false,
-			}
-			declarations = append(declarations, cony.DeclareQueue(queue))
-		}
-		if publisherConfig.RoutingKey != "" && queue != nil && exchange != nil {
-			bind := cony.Binding{
-				Queue:    queue,
-				Exchange: *exchange,
-				Key:      publisherConfig.RoutingKey,
-			}
-			declarations = append(declarations, cony.DeclareBinding(bind))
-		}
-		r.cli.Declare(declarations)
-	}
-	newPublisher := cony.NewPublisher(publisherConfig.Exchange, publisherConfig.RoutingKey)
+func (r *RabbitMqClient) makePublisher(publisher PublisherCfg) *publisher {
+	newPublisher := cony.NewPublisher(publisher.ExchangeName, publisher.RoutingKey)
 	r.cli.Publish(newPublisher)
 	return createPublisher(newPublisher)
+}
+
+func (r *RabbitMqClient) declare(cfg DeclareCfg) {
+	if cmp.Equal(r.declareConfiguration, cfg) {
+		return
+	}
+
+	declares := make([]cony.Declaration, 0)
+
+	queues := make(map[string]cony.Queue)
+	for _, queue := range cfg.Queues {
+		if queue.Name == "" {
+			log.Fatal(stdcodes.InitializingRabbitMqError, "declare empty queue name")
+		}
+		if _, found := queues[queue.Name]; found {
+			log.WithMetadata(map[string]interface{}{
+				"queue": queue.Name,
+			}).Fatal(stdcodes.InitializingRabbitMqError, "declare duplicate queue name")
+		}
+		durable := true
+		if queue.Durable != nil {
+			durable = *queue.Durable
+		}
+		q := cony.Queue{
+			Name:       queue.Name,
+			Durable:    durable,
+			AutoDelete: queue.AutoDelete,
+			Exclusive:  queue.Exclusive,
+			Args:       queue.Args,
+		}
+		queues[queue.Name] = q
+		declares = append(declares, cony.DeclareQueue(&q))
+	}
+
+	exchanges := make(map[string]cony.Exchange)
+	for _, exchange := range cfg.Exchanges {
+		if exchange.Name == "" {
+			log.Fatal(stdcodes.InitializingRabbitMqError, "declare empty exchange name")
+		}
+		if exchange.Kind != "direct" && exchange.Kind != "funout" {
+			log.WithMetadata(map[string]interface{}{
+				"exchange": exchange.Name,
+			}).Fatal(stdcodes.InitializingRabbitMqError, "declare unexpected exchange kind")
+		}
+		if _, found := exchanges[exchange.Name]; found {
+			log.WithMetadata(map[string]interface{}{
+				"exchange": exchange.Name,
+			}).Fatal(stdcodes.InitializingRabbitMqError, "declare duplicate exchange name")
+		}
+		durable := true
+		if exchange.Durable != nil {
+			durable = *exchange.Durable
+		}
+		e := cony.Exchange{
+			Name:       exchange.Name,
+			Durable:    durable,
+			AutoDelete: exchange.AutoDelete,
+			Kind:       exchange.Kind,
+			Args:       exchange.Args,
+		}
+		exchanges[exchange.Name] = e
+		declares = append(declares, cony.DeclareExchange(e))
+	}
+
+	for _, binding := range cfg.Bindings {
+		if binding.Key == "" {
+			log.Fatal(stdcodes.InitializingRabbitMqError, "declare empty binding key")
+		}
+		queue, found := queues[binding.QueueName]
+		if !found {
+			log.WithMetadata(map[string]interface{}{
+				"queue":    binding.QueueName,
+				"exchange": binding.ExchangeName,
+				"key":      binding.Key,
+			}).Fatal(stdcodes.InitializingRabbitMqError, "declare binding unknown queue")
+		}
+		exchange, found := exchanges[binding.ExchangeName]
+		if !found {
+			log.WithMetadata(map[string]interface{}{
+				"queue":    binding.QueueName,
+				"exchange": binding.ExchangeName,
+				"key":      binding.Key,
+			}).Fatal(stdcodes.InitializingRabbitMqError, "declare binding unknown exchange")
+		}
+		bind := cony.Binding{
+			Queue:    &queue,
+			Exchange: exchange,
+			Key:      binding.Key,
+			Args:     binding.Args,
+		}
+		declares = append(declares, cony.DeclareBinding(bind))
+	}
+
+	r.cli.SetDeclarations(declares)
 }
 
 func (r *RabbitMqClient) clientErrorsHandler() {
