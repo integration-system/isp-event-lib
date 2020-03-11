@@ -10,10 +10,51 @@ type PublisherCfg struct {
 	RoutingKey   string `valid:"required~Required" schema:"Ключ маршрутизации,для публикации напрямую в очередь, указывается название очереди"`
 }
 
+func (pc PublisherCfg) GetDefaultDeclarations() DeclareCfg {
+	exchanges := make([]Exchange, 0)
+	queues := make([]Queue, 0)
+	bindings := make([]Binding, 0)
+	dur := true
+	if pc.RoutingKey != "" {
+		queues = append(queues, Queue{
+			Name:       pc.RoutingKey,
+			Durable:    &dur,
+			AutoDelete: false,
+			Exclusive:  false,
+		})
+	}
+	if pc.ExchangeName != "" && pc.RoutingKey != "" {
+		exchanges = append(exchanges, Exchange{
+			Name:       pc.ExchangeName,
+			Kind:       "direct",
+			Durable:    &dur,
+			AutoDelete: false,
+		})
+		bindings = append(bindings, Binding{
+			QueueName:    pc.RoutingKey,
+			ExchangeName: pc.ExchangeName,
+			Key:          pc.RoutingKey,
+		})
+	}
+	return DeclareCfg{
+		Exchanges: exchanges,
+		Queues:    queues,
+		Bindings:  bindings,
+	}
+}
+
 type DeclareCfg struct {
 	Exchanges []Exchange `schema:"Настройка точек доступа"`
 	Queues    []Queue    `schema:"Настройка очереди"`
 	Bindings  []Binding  `schema:"Настройка связи между очередями и точками доступа"`
+}
+
+func (dc DeclareCfg) Join(add DeclareCfg) DeclareCfg {
+	return DeclareCfg{
+		Exchanges: append(dc.Exchanges, add.Exchanges...),
+		Queues:    append(dc.Queues, add.Queues...),
+		Bindings:  append(dc.Bindings, add.Bindings...),
+	}
 }
 
 type Exchange struct {
