@@ -146,7 +146,6 @@ func (r *RabbitMqClient) close() {
 	}
 	if r.cli != nil {
 		r.cli.Close()
-		r.cli = nil
 	}
 	r.lastConfig = structure.RabbitConfig{}
 	r.publishers = make(map[string]*publisher)
