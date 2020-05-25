@@ -1,5 +1,10 @@
 package mq
 
+const (
+	FanoutExchange = "fanout"
+	DirectExchange = "direct"
+)
+
 type CommonConsumerCfg struct {
 	QueueName     string `valid:"required~Required" schema:"Название очереди"`
 	PrefetchCount int    `schema:"Количество предзагруженных сообщений"`
@@ -26,7 +31,7 @@ func (pc PublisherCfg) GetDefaultDeclarations() DeclareCfg {
 	if pc.ExchangeName != "" && pc.RoutingKey != "" {
 		exchanges = append(exchanges, Exchange{
 			Name:       pc.ExchangeName,
-			Kind:       "direct",
+			Kind:       DirectExchange,
 			Durable:    &dur,
 			AutoDelete: false,
 		})

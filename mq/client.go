@@ -210,9 +210,10 @@ func (r *RabbitMqClient) declare(cfg DeclareCfg) {
 		if exchange.Name == "" {
 			log.Fatal(stdcodes.InitializingRabbitMqError, "declare empty exchange name")
 		}
-		if exchange.Kind != "direct" && exchange.Kind != "funout" {
+		if exchange.Kind != DirectExchange && exchange.Kind != FanoutExchange {
 			log.WithMetadata(map[string]interface{}{
 				"exchange": exchange.Name,
+				"type":     exchange.Kind,
 			}).Fatal(stdcodes.InitializingRabbitMqError, "declare unexpected exchange kind")
 		}
 		if _, found := exchanges[exchange.Name]; found {

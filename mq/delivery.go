@@ -16,6 +16,10 @@ func (d *Delivery) GetMessage() []byte {
 	return d.delivery.Body
 }
 
+func (d *Delivery) Source() *amqp.Delivery {
+	return &d.delivery
+}
+
 func (d *Delivery) Ack() *Delivery {
 	d.ack = true
 	return d
