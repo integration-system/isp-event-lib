@@ -2,35 +2,43 @@ package ibm
 
 import (
 	"context"
-	"github.com/Azure/go-amqp"
+	"fmt"
+	"math"
+	"sync"
+	"time"
+
 	"github.com/google/go-cmp/cmp"
+	"github.com/integration-system/cony"
+	"github.com/integration-system/go-amqp"
 	"github.com/integration-system/isp-event-lib/mq"
 	"github.com/integration-system/isp-lib/v2/structure"
 	log "github.com/integration-system/isp-log"
 	"github.com/integration-system/isp-log/stdcodes"
 	"github.com/pkg/errors"
-	"math"
-	"sync"
-	"time"
 )
 
 func NewAMQPClient() *AMQPClient {
-	return &AMQPClient{
+	c := &AMQPClient{
 		publishers:              make(map[string]*publisher),
 		publishersConfiguration: make(map[string]mq.PublisherCfg),
 
 		consumers:              make(map[string]consumer),
 		consumersConfiguration: make(map[string]ConsumerCfg),
 
-		lastConfig: structure.RabbitConfig{},
-		lock:       sync.Mutex{},
+		lastConfig:   structure.RabbitConfig{},
+		lock:         sync.Mutex{},
+		disconnectCh: make(chan error, 1),
 	}
+
+	go c.startReconnecting()
+	return c
 }
 
 type AMQPClient struct {
 	cli        *amqp.Client
 	ses        *amqp.Session
 	lastConfig structure.RabbitConfig
+	lastOpts   []Option
 
 	publishers              map[string]*publisher
 	publishersConfiguration map[string]mq.PublisherCfg
@@ -38,29 +46,50 @@ type AMQPClient struct {
 	consumers              map[string]consumer
 	consumersConfiguration map[string]ConsumerCfg
 
-	lock    sync.Mutex
-	timeout time.Duration
+	lock         sync.Mutex
+	timeout      time.Duration
+	disconnectCh chan error
 }
 
-//nolint exitAfterDefer
 func (r *AMQPClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfig, opts ...Option) {
 	r.lock.Lock()
 	defer func() {
 		if err := recover(); err != nil {
-			log.Fatal(stdcodes.InitializingRabbitMqError, err)
+			var e error
+			switch obj := err.(type) {
+			case error:
+				e = obj
+			default:
+				e = errors.New(fmt.Sprint(obj))
+			}
+			r.disconnectCh <- errors.WithMessage(e, "receive new configuration")
+
 		}
 		r.lock.Unlock()
 	}()
 
+	err := r.initClient(false, rabbitConfig, opts...)
+	if err != nil {
+		r.disconnectCh <- errors.WithMessage(err, "receive new configuration")
+	}
+}
+
+func (r *AMQPClient) initClient(force bool, rabbitConfig structure.RabbitConfig, opts ...Option) error {
 	options := defaultOptions()
 	for _, option := range opts {
 		option(options)
 	}
+	r.lastOpts = opts
+	r.timeout = options.timeout
 
-	if !cmp.Equal(r.lastConfig, rabbitConfig) {
+	if force || !cmp.Equal(r.lastConfig, rabbitConfig) {
 		r.close()
+		r.lastConfig = rabbitConfig
 		connOpts := []amqp.ConnOption{
 			amqp.ConnIdleTimeout(0),
+			amqp.ConnOnUnexpectedDisconnect(func(err error) {
+				r.disconnectCh <- err
+			}),
 		}
 		if options.connContainerId != "" {
 			connOpts = append(connOpts, amqp.ConnContainerID(options.connContainerId))
@@ -68,21 +97,17 @@ func (r *AMQPClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfig, o
 
 		cli, err := amqp.Dial(rabbitConfig.GetUri(), connOpts...)
 		if err != nil {
-			log.Fatal(stdcodes.InitializingRabbitMqError, errors.WithMessage(err, "create client"))
+			return errors.WithMessage(err, "create client")
 		}
 		ses, err := cli.NewSession()
 		if err != nil {
-			log.Fatal(stdcodes.InitializingRabbitMqError, errors.WithMessage(err, "create session"))
+			_ = cli.Close()
+			return errors.WithMessage(err, "create session")
 		}
 		r.cli = cli
 		r.ses = ses
-		r.lastConfig = rabbitConfig
-	}
-	if r.cli == nil {
-		return
 	}
 
-	r.timeout = options.timeout
 	newPublishers, oldPublishers := r.newPublishers(options.publishersConfiguration)
 	newConsumers, oldConsumers := r.newConsumers(options.consumersConfiguration)
 	for _, c := range oldConsumers {
@@ -94,6 +119,8 @@ func (r *AMQPClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfig, o
 
 	r.consumers, r.consumersConfiguration = newConsumers, options.consumersConfiguration
 	r.publishers, r.publishersConfiguration = newPublishers, options.publishersConfiguration
+
+	return nil
 }
 
 func (r *AMQPClient) GetPublisher(name string) *publisher {
@@ -104,6 +131,53 @@ func (r *AMQPClient) Close() {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	r.close()
+}
+
+func (r *AMQPClient) startReconnecting() {
+	attempt := 0
+	backoff := cony.DefaultBackoff
+	var prevConfig structure.RabbitConfig
+	for {
+		select {
+		case err := <-r.disconnectCh:
+			log.WithMetadata(map[string]interface{}{
+				"message": err,
+			}).Error(stdcodes.InitializingRabbitMqError, "amqp client disconnected. trying to reconnect")
+
+			func() {
+				r.lock.Lock()
+				defer func() {
+					if err := recover(); err != nil {
+						var e error
+						switch obj := err.(type) {
+						case error:
+							e = obj
+						default:
+							e = errors.New(fmt.Sprint(obj))
+						}
+						r.disconnectCh <- e
+					}
+					r.lock.Unlock()
+				}()
+
+				if r.lastConfig == (structure.RabbitConfig{}) {
+					return
+				}
+
+				if prevConfig != r.lastConfig {
+					attempt = 0
+				}
+				attempt++
+				time.Sleep(backoff.Backoff(attempt))
+
+				prevConfig = r.lastConfig
+				err := r.initClient(true, r.lastConfig, r.lastOpts...)
+				if err != nil {
+					r.disconnectCh <- err
+				}
+			}()
+		}
+	}
 }
 
 func (r *AMQPClient) newPublishers(config map[string]mq.PublisherCfg) (map[string]*publisher, map[string]*publisher) {

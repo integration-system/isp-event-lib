@@ -2,10 +2,11 @@ package ibm
 
 import (
 	"context"
-	"github.com/Azure/go-amqp"
-	"github.com/integration-system/isp-lib/v2/atomic"
 	"sync"
 	"time"
+
+	"github.com/integration-system/go-amqp"
+	"github.com/integration-system/isp-lib/v2/atomic"
 )
 
 type consumer interface {
@@ -35,7 +36,9 @@ func (c *byOneConsumer) start() {
 			if err == c.ctx.Err() {
 				return
 			}
-			c.errorHandler(err)
+			if c.errorHandler != nil {
+				c.errorHandler(err)
+			}
 			return
 		}
 		c.wg.Add(1)

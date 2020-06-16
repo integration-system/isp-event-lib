@@ -1,8 +1,9 @@
 package ibm
 
 import (
-	"github.com/Azure/go-amqp"
 	"sync"
+
+	"github.com/integration-system/go-amqp"
 )
 
 type Delivery struct {

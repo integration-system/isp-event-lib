@@ -2,7 +2,8 @@ package ibm
 
 import (
 	"context"
-	"github.com/Azure/go-amqp"
+
+	"github.com/integration-system/go-amqp"
 	"github.com/integration-system/isp-event-lib/mq"
 	"github.com/integration-system/isp-lib/v2/atomic"
 )

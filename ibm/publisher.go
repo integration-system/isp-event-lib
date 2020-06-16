@@ -2,9 +2,10 @@ package ibm
 
 import (
 	"context"
-	"github.com/Azure/go-amqp"
-	"github.com/integration-system/isp-event-lib/mq"
 	"time"
+
+	"github.com/integration-system/go-amqp"
+	"github.com/integration-system/isp-event-lib/mq"
 )
 
 type publisher struct {
