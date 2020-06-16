@@ -1,10 +1,11 @@
 package mq
 
 import (
-	"github.com/integration-system/isp-lib/v2/atomic"
-	"github.com/streadway/amqp"
 	"sync"
 	"time"
+
+	"github.com/integration-system/isp-lib/v2/atomic"
+	"github.com/streadway/amqp"
 
 	"github.com/integration-system/cony"
 )
@@ -49,7 +50,6 @@ func (c *batchConsumer) start() {
 		case delivery, open := <-c.consumer.Deliveries():
 			if c.close.Get() {
 				c.handleBatch(deliveries[0:currentSize])
-				currentSize = 0
 				return
 			}
 
@@ -68,7 +68,6 @@ func (c *batchConsumer) start() {
 		case err := <-c.consumer.Errors():
 			if c.close.Get() {
 				c.handleBatch(deliveries[0:currentSize])
-				currentSize = 0
 				return
 			}
 
@@ -86,7 +85,6 @@ func (c *batchConsumer) start() {
 		case <-purgeTicker.C:
 			if c.close.Get() {
 				c.handleBatch(deliveries[0:currentSize])
-				currentSize = 0
 				return
 			}
 

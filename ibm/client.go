@@ -74,55 +74,6 @@ func (r *AMQPClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfig, o
 	}
 }
 
-func (r *AMQPClient) initClient(force bool, rabbitConfig structure.RabbitConfig, opts ...Option) error {
-	options := defaultOptions()
-	for _, option := range opts {
-		option(options)
-	}
-	r.lastOpts = opts
-	r.timeout = options.timeout
-
-	if force || !cmp.Equal(r.lastConfig, rabbitConfig) {
-		r.close()
-		r.lastConfig = rabbitConfig
-		connOpts := []amqp.ConnOption{
-			amqp.ConnIdleTimeout(0),
-			amqp.ConnOnUnexpectedDisconnect(func(err error) {
-				r.disconnectCh <- err
-			}),
-		}
-		if options.connContainerId != "" {
-			connOpts = append(connOpts, amqp.ConnContainerID(options.connContainerId))
-		}
-
-		cli, err := amqp.Dial(rabbitConfig.GetUri(), connOpts...)
-		if err != nil {
-			return errors.WithMessage(err, "create client")
-		}
-		ses, err := cli.NewSession()
-		if err != nil {
-			_ = cli.Close()
-			return errors.WithMessage(err, "create session")
-		}
-		r.cli = cli
-		r.ses = ses
-	}
-
-	newPublishers, oldPublishers := r.newPublishers(options.publishersConfiguration)
-	newConsumers, oldConsumers := r.newConsumers(options.consumersConfiguration)
-	for _, c := range oldConsumers {
-		c.awaitCancel(r.timeout)
-	}
-	for _, p := range oldPublishers {
-		p.cancel()
-	}
-
-	r.consumers, r.consumersConfiguration = newConsumers, options.consumersConfiguration
-	r.publishers, r.publishersConfiguration = newPublishers, options.publishersConfiguration
-
-	return nil
-}
-
 func (r *AMQPClient) GetPublisher(name string) *publisher {
 	return r.publishers[name]
 }
@@ -178,6 +129,55 @@ func (r *AMQPClient) startReconnecting() {
 			}()
 		}
 	}
+}
+
+func (r *AMQPClient) initClient(force bool, rabbitConfig structure.RabbitConfig, opts ...Option) error {
+	options := defaultOptions()
+	for _, option := range opts {
+		option(options)
+	}
+	r.lastOpts = opts
+	r.timeout = options.timeout
+
+	if force || !cmp.Equal(r.lastConfig, rabbitConfig) {
+		r.close()
+		r.lastConfig = rabbitConfig
+		connOpts := []amqp.ConnOption{
+			amqp.ConnIdleTimeout(0),
+			amqp.ConnOnUnexpectedDisconnect(func(err error) {
+				r.disconnectCh <- err
+			}),
+		}
+		if options.connContainerId != "" {
+			connOpts = append(connOpts, amqp.ConnContainerID(options.connContainerId))
+		}
+
+		cli, err := amqp.Dial(rabbitConfig.GetUri(), connOpts...)
+		if err != nil {
+			return errors.WithMessage(err, "create client")
+		}
+		ses, err := cli.NewSession()
+		if err != nil {
+			_ = cli.Close()
+			return errors.WithMessage(err, "create session")
+		}
+		r.cli = cli
+		r.ses = ses
+	}
+
+	newPublishers, oldPublishers := r.newPublishers(options.publishersConfiguration)
+	newConsumers, oldConsumers := r.newConsumers(options.consumersConfiguration)
+	for _, c := range oldConsumers {
+		c.awaitCancel(r.timeout)
+	}
+	for _, p := range oldPublishers {
+		p.cancel()
+	}
+
+	r.consumers, r.consumersConfiguration = newConsumers, options.consumersConfiguration
+	r.publishers, r.publishersConfiguration = newPublishers, options.publishersConfiguration
+
+	return nil
 }
 
 func (r *AMQPClient) newPublishers(config map[string]mq.PublisherCfg) (map[string]*publisher, map[string]*publisher) {
