@@ -14,9 +14,9 @@ type publisher struct {
 	timeout   time.Duration
 }
 
-func createPublisher(conyPublisher *amqp.Sender, cfg mq.PublisherCfg, timeout time.Duration) *publisher {
+func newPublisher(sender *amqp.Sender, cfg mq.PublisherCfg, timeout time.Duration) *publisher {
 	return &publisher{
-		publisher: conyPublisher,
+		publisher: sender,
 		timeout:   timeout,
 		queue:     cfg.RoutingKey,
 	}

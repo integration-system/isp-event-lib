@@ -2,7 +2,6 @@ package ibm
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -53,20 +52,7 @@ type AMQPClient struct {
 
 func (r *AMQPClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfig, opts ...Option) {
 	r.lock.Lock()
-	defer func() {
-		if err := recover(); err != nil {
-			var e error
-			switch obj := err.(type) {
-			case error:
-				e = obj
-			default:
-				e = errors.New(fmt.Sprint(obj))
-			}
-			r.disconnectCh <- errors.WithMessage(e, "receive new configuration")
-
-		}
-		r.lock.Unlock()
-	}()
+	defer r.lock.Unlock()
 
 	err := r.initClient(false, rabbitConfig, opts...)
 	if err != nil {
@@ -97,19 +83,7 @@ func (r *AMQPClient) startReconnecting() {
 
 			func() {
 				r.lock.Lock()
-				defer func() {
-					if err := recover(); err != nil {
-						var e error
-						switch obj := err.(type) {
-						case error:
-							e = obj
-						default:
-							e = errors.New(fmt.Sprint(obj))
-						}
-						r.disconnectCh <- e
-					}
-					r.lock.Unlock()
-				}()
+				defer r.lock.Unlock()
 
 				if r.lastConfig == (structure.RabbitConfig{}) {
 					return
@@ -119,6 +93,7 @@ func (r *AMQPClient) startReconnecting() {
 					attempt = 0
 				}
 				attempt++
+				// TODO: remove sleep under lock
 				time.Sleep(backoff.Backoff(attempt))
 
 				prevConfig = r.lastConfig
@@ -165,8 +140,14 @@ func (r *AMQPClient) initClient(force bool, rabbitConfig structure.RabbitConfig,
 		r.ses = ses
 	}
 
-	newPublishers, oldPublishers := r.newPublishers(options.publishersConfiguration)
-	newConsumers, oldConsumers := r.newConsumers(options.consumersConfiguration)
+	newPublishers, oldPublishers, err := r.newPublishers(options.publishersConfiguration)
+	if err != nil {
+		return err
+	}
+	newConsumers, oldConsumers, err := r.newConsumers(options.consumersConfiguration)
+	if err != nil {
+		return err
+	}
 	for _, c := range oldConsumers {
 		c.awaitCancel(r.timeout)
 	}
@@ -180,7 +161,7 @@ func (r *AMQPClient) initClient(force bool, rabbitConfig structure.RabbitConfig,
 	return nil
 }
 
-func (r *AMQPClient) newPublishers(config map[string]mq.PublisherCfg) (map[string]*publisher, map[string]*publisher) {
+func (r *AMQPClient) newPublishers(config map[string]mq.PublisherCfg) (map[string]*publisher, map[string]*publisher, error) {
 	newPublishers, oldPublisher := make(map[string]*publisher), make(map[string]*publisher)
 	for key, publisher := range r.publishers {
 		newConfiguration, found := config[key]
@@ -192,13 +173,20 @@ func (r *AMQPClient) newPublishers(config map[string]mq.PublisherCfg) (map[strin
 	}
 	for key, newConfiguration := range config {
 		if _, found := newPublishers[key]; !found {
-			newPublishers[key] = r.makePublisher(newConfiguration)
+			newPublisher, err := r.makePublisher(newConfiguration)
+			if err != nil {
+				for _, pub := range newPublishers {
+					pub.cancel()
+				}
+				return nil, nil, err
+			}
+			newPublishers[key] = newPublisher
 		}
 	}
-	return newPublishers, oldPublisher
+	return newPublishers, oldPublisher, nil
 }
 
-func (r *AMQPClient) newConsumers(config map[string]ConsumerCfg) (map[string]consumer, map[string]consumer) {
+func (r *AMQPClient) newConsumers(config map[string]ConsumerCfg) (map[string]consumer, map[string]consumer, error) {
 	newConsumers, oldConsumer := make(map[string]consumer), make(map[string]consumer)
 	for key, consumer := range r.consumers {
 		newConfiguration, found := config[key]
@@ -211,10 +199,17 @@ func (r *AMQPClient) newConsumers(config map[string]ConsumerCfg) (map[string]con
 	}
 	for key, newConfiguration := range config {
 		if _, found := newConsumers[key]; !found {
-			newConsumers[key] = r.makeConsumer(newConfiguration)
+			newConsumer, err := r.makeConsumer(newConfiguration)
+			if err != nil {
+				for _, cons := range newConsumers {
+					cons.stop()
+				}
+				return nil, nil, err
+			}
+			newConsumers[key] = newConsumer
 		}
 	}
-	return newConsumers, oldConsumer
+	return newConsumers, oldConsumer, nil
 }
 
 func (r *AMQPClient) close() {
@@ -243,7 +238,7 @@ func (r *AMQPClient) close() {
 	r.consumersConfiguration = make(map[string]ConsumerCfg)
 }
 
-func (r *AMQPClient) makeConsumer(consumer ConsumerCfg) consumer {
+func (r *AMQPClient) makeConsumer(consumer ConsumerCfg) (consumer, error) {
 	cfg := consumer.getCommon()
 	opts := []amqp.LinkOption{
 		amqp.LinkSourceAddress(cfg.QueueName),
@@ -255,23 +250,23 @@ func (r *AMQPClient) makeConsumer(consumer ConsumerCfg) consumer {
 	if cfg.PrefetchCount > 0 {
 		opts = append(opts, amqp.LinkCredit(uint32(cfg.PrefetchCount)))
 	}
-	conyConsumer, err := r.ses.NewReceiver(opts...)
+	receiver, err := r.ses.NewReceiver(opts...)
 	if err != nil {
-		panic(errors.WithMessage(err, "create receiver"))
+		return nil, errors.WithMessage(err, "create receiver")
 	}
-	newConsumer := consumer.createConsumer(conyConsumer)
+	newConsumer := consumer.createConsumer(receiver)
 	go newConsumer.start()
-	return newConsumer
+	return newConsumer, nil
 }
 
-func (r *AMQPClient) makePublisher(publisher mq.PublisherCfg) *publisher {
+func (r *AMQPClient) makePublisher(publisher mq.PublisherCfg) (*publisher, error) {
 	opts := []amqp.LinkOption{
 		amqp.LinkTargetAddress(publisher.RoutingKey),
 		amqp.LinkName(publisher.RoutingKey),
 	}
 	sender, err := r.ses.NewSender(opts...)
 	if err != nil {
-		panic(errors.WithMessage(err, "create sender"))
+		return nil, errors.WithMessage(err, "create sender")
 	}
-	return createPublisher(sender, publisher, r.timeout)
+	return newPublisher(sender, publisher, r.timeout), nil
 }
