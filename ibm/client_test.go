@@ -70,7 +70,7 @@ func TestClient_Reconnect(t *testing.T) {
 	acks := int32(0)
 	consumerErrors := int32(0)
 
-	cli := createClient(queueName,
+	cli, _ := createTestClient(queueName,
 		func(delivery Delivery) {
 			atomic.AddInt32(&acks, 1)
 			data := delivery.GetMessage().GetData()
@@ -109,7 +109,7 @@ func TestClient_ReconnectAfterFirstFail(t *testing.T) {
 
 	a.NoError(activemqCtx.StopContainer(10 * time.Second))
 
-	cli := createClient(queueName,
+	cli, _ := createTestClient(queueName,
 		func(delivery Delivery) {
 			atomic.AddInt32(&acks, 1)
 			data := delivery.GetMessage().GetData()
@@ -134,7 +134,62 @@ func TestClient_ReconnectAfterFirstFail(t *testing.T) {
 	a.EqualValues(0, atomic.LoadInt32(&consumerErrors))
 }
 
-func createClient(queueName string, callback func(delivery Delivery), errorHandler func(err error)) *AMQPClient {
+func TestClient_UpdateOptions(t *testing.T) {
+	a := assert.New(t)
+	const queueName = "/test_publisher-3"
+	const queueName2 = "/test_publisher-3_2"
+	const payload = "somestring444"
+	acks := int32(0)
+	consumerErrors := int32(0)
+
+	callback := func(delivery Delivery) {
+		atomic.AddInt32(&acks, 1)
+		data := delivery.GetMessage().GetData()
+		a.Equal(payload, string(data))
+		a.NoError(delivery.Ack().Release())
+	}
+	errorHandler := func(err error) {
+		atomic.AddInt32(&consumerErrors, 1)
+	}
+
+	cli, cfg := createTestClient(queueName,
+		callback,
+		errorHandler,
+	)
+	defer cli.Close()
+
+	err := cli.GetPublisher(queueName).Publish(amqp.NewMessage([]byte(payload)))
+	a.NoError(err)
+	time.Sleep(time.Second)
+
+	publishers := map[string]mq.PublisherCfg{
+		queueName2: {
+			RoutingKey: queueName2,
+		},
+	}
+	consumers := map[string]ConsumerCfg{
+		queueName2: ByOneConsumerCfg{
+			CommonConsumerCfg: mq.CommonConsumerCfg{
+				QueueName: queueName2,
+			},
+			Callback:     callback,
+			ErrorHandler: errorHandler,
+		},
+	}
+	cli.ReceiveConfiguration(cfg, WithPublishers(publishers), WithConsumers(consumers), WithDefaultTimeout(time.Second))
+	time.Sleep(time.Second)
+
+	err = cli.GetPublisher(queueName2).Publish(amqp.NewMessage([]byte(payload)))
+	a.NoError(err)
+	time.Sleep(time.Second)
+	a.Nil(cli.GetPublisher(queueName))
+
+	a.EqualValues(2, atomic.LoadInt32(&acks))
+	a.EqualValues(0, atomic.LoadInt32(&consumerErrors))
+}
+
+func createTestClient(queueName string, callback func(delivery Delivery), errorHandler func(err error),
+) (*AMQPClient, structure.RabbitConfig) {
 	publishers := map[string]mq.PublisherCfg{
 		queueName: {
 			RoutingKey: queueName,
@@ -161,5 +216,5 @@ func createClient(queueName string, callback func(delivery Delivery), errorHandl
 	cli := NewAMQPClient()
 	cli.ReceiveConfiguration(cfg, WithPublishers(publishers), WithConsumers(consumers))
 
-	return cli
+	return cli, cfg
 }
