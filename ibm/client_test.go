@@ -63,6 +63,44 @@ func setup(_ *ctx.TestContext, runTest func() int) int {
 	return runTest()
 }
 
+func TestAmqpClient_ConnOnUnexpectedDisconnect(t *testing.T) {
+	a := assert.New(t)
+	connErrors := int32(0)
+
+	connOpts := []amqp.ConnOption{
+		amqp.ConnIdleTimeout(0),
+		amqp.ConnOnUnexpectedDisconnect(func(err error) {
+			atomic.AddInt32(&connErrors, 1)
+		}),
+	}
+
+	cfg := structure.RabbitConfig{
+		Address: structure.AddressConfiguration{
+			Port: "5672",
+			IP:   "127.0.0.3",
+		},
+		User:     "admin",
+		Password: "admin",
+	}
+
+	cli, err := amqp.Dial(cfg.GetUri(), connOpts...)
+	a.NoError(err)
+	a.NoError(cli.Close())
+	a.EqualValues(0, atomic.LoadInt32(&connErrors))
+
+	cli, err = amqp.Dial(cfg.GetUri(), connOpts...)
+	a.NoError(err)
+	a.EqualValues(0, atomic.LoadInt32(&connErrors))
+
+	a.NoError(activemqCtx.StopContainer(10 * time.Second))
+	a.EqualValues(1, atomic.LoadInt32(&connErrors))
+	time.Sleep(time.Second)
+
+	a.NoError(activemqCtx.StartContainer())
+	time.Sleep(3 * time.Second)
+	a.EqualValues(1, atomic.LoadInt32(&connErrors))
+}
+
 func TestClient_Reconnect(t *testing.T) {
 	a := assert.New(t)
 	const queueName = "/test_publisher"
