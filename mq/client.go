@@ -180,7 +180,7 @@ func (r *RabbitMqClient) declare(cfg DeclareCfg) {
 
 	declares := make([]cony.Declaration, 0)
 
-	queues := make(map[string]cony.Queue)
+	queues := make(map[string]*cony.Queue)
 	for _, queue := range cfg.Queues {
 		if queue.Name == "" {
 			log.Fatal(stdcodes.InitializingRabbitMqError, "declare empty queue name")
@@ -194,7 +194,7 @@ func (r *RabbitMqClient) declare(cfg DeclareCfg) {
 		if queue.Durable != nil {
 			durable = *queue.Durable
 		}
-		q := cony.Queue{
+		q := &cony.Queue{
 			Name:       queue.Name,
 			Durable:    durable,
 			AutoDelete: queue.AutoDelete,
@@ -202,7 +202,7 @@ func (r *RabbitMqClient) declare(cfg DeclareCfg) {
 			Args:       queue.Args,
 		}
 		queues[queue.Name] = q
-		declares = append(declares, cony.DeclareQueue(&q))
+		declares = append(declares, cony.DeclareQueue(q))
 	}
 
 	exchanges := make(map[string]cony.Exchange)
@@ -257,7 +257,7 @@ func (r *RabbitMqClient) declare(cfg DeclareCfg) {
 			}).Fatal(stdcodes.InitializingRabbitMqError, "declare binding unknown exchange")
 		}
 		bind := cony.Binding{
-			Queue:    &queue,
+			Queue:    queue,
 			Exchange: exchange,
 			Key:      binding.Key,
 			Args:     binding.Args,
@@ -275,13 +275,13 @@ func (r *RabbitMqClient) clientErrorsHandler() {
 			if err != nil {
 				log.WithMetadata(map[string]interface{}{
 					"message": err,
-				}).Warnf(stdcodes.RabbitMqClientError, "rabbitmq error")
+				}).Warn(stdcodes.RabbitMqClientError, "rabbitmq error")
 			}
 		case blocked := <-r.cli.Blocking():
 			if blocked.Active {
 				log.WithMetadata(map[string]interface{}{
 					"message": blocked.Reason,
-				}).Warnf(stdcodes.RabbitMqBlockedConnection, "blocked")
+				}).Warn(stdcodes.RabbitMqBlockedConnection, "blocked")
 			}
 		}
 	}

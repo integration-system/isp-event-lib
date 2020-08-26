@@ -2,7 +2,8 @@ package ibm
 
 import (
 	"context"
-	"github.com/Azure/go-amqp"
+
+	"github.com/integration-system/go-amqp"
 	"github.com/integration-system/isp-event-lib/mq"
 	"github.com/integration-system/isp-lib/v2/atomic"
 )
@@ -24,12 +25,12 @@ func (c ByOneConsumerCfg) getCommon() mq.CommonConsumerCfg {
 	return c.CommonConsumerCfg
 }
 
-func (c ByOneConsumerCfg) createConsumer(conyConsumer *amqp.Receiver) consumer {
+func (c ByOneConsumerCfg) createConsumer(receiver *amqp.Receiver) consumer {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	return &byOneConsumer{
 		ctx:          ctx,
 		cancelFunc:   cancelFunc,
-		consumer:     conyConsumer,
+		consumer:     receiver,
 		callback:     c.Callback,
 		errorHandler: c.ErrorHandler,
 		close:        atomic.NewAtomicBool(false),

@@ -2,9 +2,10 @@ package ibm
 
 import (
 	"context"
-	"github.com/Azure/go-amqp"
-	"github.com/integration-system/isp-event-lib/mq"
 	"time"
+
+	"github.com/integration-system/go-amqp"
+	"github.com/integration-system/isp-event-lib/mq"
 )
 
 type publisher struct {
@@ -13,9 +14,9 @@ type publisher struct {
 	timeout   time.Duration
 }
 
-func createPublisher(conyPublisher *amqp.Sender, cfg mq.PublisherCfg, timeout time.Duration) *publisher {
+func newPublisher(sender *amqp.Sender, cfg mq.PublisherCfg, timeout time.Duration) *publisher {
 	return &publisher{
-		publisher: conyPublisher,
+		publisher: sender,
 		timeout:   timeout,
 		queue:     cfg.RoutingKey,
 	}

@@ -3,9 +3,9 @@ module github.com/integration-system/isp-event-lib
 go 1.14
 
 require (
-	github.com/Azure/go-amqp v0.12.7
 	github.com/google/go-cmp v0.4.0
 	github.com/integration-system/cony v0.3.0
+	github.com/integration-system/go-amqp v0.12.8
 	github.com/integration-system/isp-lib-test v1.5.0
 	github.com/integration-system/isp-lib/v2 v2.2.0
 	github.com/integration-system/isp-log v1.0.0

@@ -1,6 +1,4 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
-github.com/Azure/go-amqp v0.12.7 h1:/Uyqh30J5JrDFAOERQtEqP0qPWkrNXxr94vRnSa54Ac=
-github.com/Azure/go-amqp v0.12.7/go.mod h1:qApuH6OFTSKZFmCOxccvAv5rLizBQf4v8pRmG138DPo=
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/DataDog/datadog-go v2.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
@@ -120,6 +118,8 @@ github.com/integration-system/bellows v0.0.0-20190821124023-244325e8836c h1:yyIH
 github.com/integration-system/bellows v0.0.0-20190821124023-244325e8836c/go.mod h1:6cf4ZNvtzZ/KMiuc+d5Y7rSHjzlYBWEqbVyDfUDhqIE=
 github.com/integration-system/cony v0.3.0 h1:wSDrThUe7JdI1kUo1PBQ+TdYcGkrPzfbV01bBC6mpbQ=
 github.com/integration-system/cony v0.3.0/go.mod h1:3DTgNOKVMPhFyI0CD85HlIfeP29x3h7hAK0XLsg4mww=
+github.com/integration-system/go-amqp v0.12.8 h1:FPcH02FhL8QZNEfWx14nbr7F4Wen/AxKtoln1MwktqY=
+github.com/integration-system/go-amqp v0.12.8/go.mod h1:ALB2VeQh/HXN/2Nk0XClCbsL30yT+6y0qKRRZg3D9FM=
 github.com/integration-system/go-cmp v0.0.0-20190131081942-ac5582987a2f/go.mod h1:w+dmaWojuIwNujSYg6qt1wKHhSdorLOivCEl/XuLzbM=
 github.com/integration-system/gowsdl v1.0.0/go.mod h1:ZwTCE+Av5aQLnPj2/3PIop6mzCs1FY7jXrcWDvSjrBA=
 github.com/integration-system/isp-etp-go v2.0.2+incompatible/go.mod h1:NdgczkoFCer9SZOx674EVXCcKRIhFe8LYnwNwoIMDhI=
