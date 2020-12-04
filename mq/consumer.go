@@ -3,6 +3,8 @@ package mq
 import (
 	"github.com/integration-system/cony"
 	"github.com/integration-system/isp-lib/v2/atomic"
+	"github.com/streadway/amqp"
+
 	"time"
 )
 
@@ -58,5 +60,14 @@ func (c BatchingConsumerCfg) createConsumer(conyConsumer *cony.Consumer, reConsu
 		close:        atomic.NewAtomicBool(false),
 		reConsume:    reConsume,
 		bo:           cony.DefaultBackoff,
+	}
+}
+
+func (cfg *CommonConsumerCfg) configureDeadLetterExchange() amqp.Table {
+	if !cfg.DeadLetter {
+		return nil
+	}
+	return map[string]interface{}{
+		deadLetterArg: cfg.QueueName + dlxQueueSuffix,
 	}
 }

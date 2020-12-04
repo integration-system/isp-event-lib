@@ -1,8 +1,18 @@
 package mq
 
-import "time"
+import (
+	"fmt"
+	"time"
 
-const defaultTimeout = 10 * time.Second
+	log "github.com/integration-system/isp-log"
+)
+
+const (
+	deadLetterArg     = "x-dead-letter-exchange"
+	dlxQueueSuffix    = ".DLX"
+	dlxExchangeSuffix = ".exchange.DLX"
+	defaultTimeout    = 10 * time.Second
+)
 
 type Option func(opt *options)
 
@@ -11,6 +21,57 @@ type options struct {
 	publishersConfiguration map[string]PublisherCfg
 	declareConfiguration    DeclareCfg
 	timeout                 time.Duration
+}
+
+func (o *options) addDeadLetters() {
+	for _, consumerCfg := range o.consumersConfiguration {
+		common := consumerCfg.getCommon()
+		if common.DeadLetter {
+			//TODO: может создавать в любом случае, даже если в DeclareCfg не существует описаной очереди?
+			qptr := findQueue(o.declareConfiguration.Queues, common.QueueName)
+			deadLetterDeclareCfg := qptr.makeDeadLetterBranch()
+			o.declareConfiguration.Join(deadLetterDeclareCfg)
+		}
+	}
+}
+
+func (q *Queue) makeDeadLetterBranch() DeclareCfg {
+	if q.Args == nil {
+		q.Args = make(map[string]interface{}, 1)
+	} else if _, found := q.Args[deadLetterArg]; found {
+		//TODO: проверить, может ветки dLX еще существует, тогда создать
+		log.Warn(0, fmt.Sprint("queue ", q.Name, " already configured to DeadLetter by args"))
+		return DeclareCfg{}
+	}
+	dur := true
+
+	q.Args[deadLetterArg] = q.Name + dlxExchangeSuffix
+	return DeclareCfg{
+		Exchanges: []Exchange{{
+			Name:    q.Name + dlxExchangeSuffix,
+			Kind:    "direct",
+			Durable: &dur,
+		}},
+		Queues: []Queue{{
+			Name:    q.Name + dlxQueueSuffix,
+			Durable: &dur,
+		}},
+		Bindings: []Binding{{
+			QueueName:    q.Name + dlxQueueSuffix,
+			ExchangeName: q.Name + dlxExchangeSuffix,
+			Key:          "",
+			Args:         nil,
+		}},
+	}
+}
+
+func findQueue(queues []Queue, name string) *Queue {
+	for i, _ := range queues {
+		if queues[i].Name == name {
+			return &queues[i]
+		}
+	}
+	return nil
 }
 
 func WithConsumers(consumers map[string]ConsumerCfg) Option {

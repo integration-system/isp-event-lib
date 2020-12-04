@@ -8,6 +8,7 @@ const (
 type CommonConsumerCfg struct {
 	QueueName     string `valid:"required~Required" schema:"Название очереди"`
 	PrefetchCount int    `schema:"Количество предзагруженных сообщений"`
+	DeadLetter    bool   `schema:"Подключение Dead Letter Exchange"`
 }
 
 type PublisherCfg struct {

@@ -67,6 +67,7 @@ func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfi
 	}
 	r.timeout = options.timeout
 
+	options.addDeadLetters()
 	r.declare(options.declareConfiguration)
 	newPublishers, oldPublishers := r.newPublishers(options.publishersConfiguration)
 	newConsumers, oldConsumers := r.newConsumers(options.consumersConfiguration)
@@ -160,7 +161,7 @@ func (r *RabbitMqClient) makeConsumer(consumer ConsumerCfg) consumer {
 	if cfg.PrefetchCount > 0 {
 		opts = append(opts, cony.Qos(cfg.PrefetchCount))
 	}
-	conyConsumer := cony.NewConsumer(&cony.Queue{Name: cfg.QueueName}, opts...)
+	conyConsumer := cony.NewConsumer(&cony.Queue{Name: cfg.QueueName, Args: cfg.configureDeadLetterExchange()}, opts...)
 	r.cli.Consume(conyConsumer)
 	newConsumer := consumer.createConsumer(conyConsumer, r.cli.Consume)
 	go newConsumer.start()
