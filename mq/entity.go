@@ -9,6 +9,10 @@ import (
 const (
 	FanoutExchange = "fanout"
 	DirectExchange = "direct"
+
+	deadLetterArg            = "x-dead-letter-exchange"
+	dlQueueSuffix            = ".DLQ"
+	commonDeadLetterExchange = "CommonDLX"
 )
 
 type Config struct {
@@ -34,39 +38,45 @@ type CommonConsumerCfg struct {
 type PublisherCfg struct {
 	ExchangeName string `schema:"Название точки доступа"`
 	RoutingKey   string `valid:"required~Required" schema:"Ключ маршрутизации,для публикации напрямую в очередь, указывается название очереди"`
+	DeadLetter   bool   `schema:"Подключение Dead Letter Exchange"`
 }
 
 func (pc PublisherCfg) GetDefaultDeclarations() DeclareCfg {
-	exchanges := make([]Exchange, 0)
-	queues := make([]Queue, 0)
-	bindings := make([]Binding, 0)
+	declarations := DeclareCfg{
+		Exchanges: make([]Exchange, 0),
+		Queues:    make([]Queue, 0),
+		Bindings:  make([]Binding, 0),
+	}
+
 	dur := true
 	if pc.RoutingKey != "" {
-		queues = append(queues, Queue{
+		queue := Queue{
 			Name:       pc.RoutingKey,
 			Durable:    &dur,
 			AutoDelete: false,
 			Exclusive:  false,
-		})
+		}
+		if pc.DeadLetter {
+			queue.Args = make(map[string]interface{}, 1)
+			queue.Args[deadLetterArg] = commonDeadLetterExchange
+			declarations.addDeadLetterDeclarations(pc.RoutingKey)
+		}
+		declarations.Queues = append(declarations.Queues, queue)
 	}
 	if pc.ExchangeName != "" && pc.RoutingKey != "" {
-		exchanges = append(exchanges, Exchange{
+		declarations.Exchanges = append(declarations.Exchanges, Exchange{
 			Name:       pc.ExchangeName,
 			Kind:       DirectExchange,
 			Durable:    &dur,
 			AutoDelete: false,
 		})
-		bindings = append(bindings, Binding{
+		declarations.Bindings = append(declarations.Bindings, Binding{
 			QueueName:    pc.RoutingKey,
 			ExchangeName: pc.ExchangeName,
 			Key:          pc.RoutingKey,
 		})
 	}
-	return DeclareCfg{
-		Exchanges: exchanges,
-		Queues:    queues,
-		Bindings:  bindings,
-	}
+	return declarations
 }
 
 type DeclareCfg struct {
@@ -81,6 +91,27 @@ func (dc DeclareCfg) Join(add DeclareCfg) DeclareCfg {
 		Queues:    append(dc.Queues, add.Queues...),
 		Bindings:  append(dc.Bindings, add.Bindings...),
 	}
+}
+
+func (dc *DeclareCfg) addDeadLetterDeclarations(name string) {
+	dur := true
+	dlqName := name + dlQueueSuffix
+
+	dc.Exchanges = append(dc.Exchanges, Exchange{
+		Name:    commonDeadLetterExchange,
+		Kind:    DirectExchange,
+		Durable: &dur,
+	})
+	dc.Queues = append(dc.Queues, Queue{
+		Name:    dlqName,
+		Durable: &dur,
+	})
+	dc.Bindings = append(dc.Bindings, Binding{
+		QueueName:    dlqName,
+		ExchangeName: commonDeadLetterExchange,
+		Key:          name,
+		Args:         nil,
+	})
 }
 
 type Exchange struct {

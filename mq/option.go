@@ -1,8 +1,12 @@
 package mq
 
-import "time"
+import (
+	"time"
+)
 
-const defaultTimeout = 10 * time.Second
+const (
+	defaultTimeout = 10 * time.Second
+)
 
 type Option func(opt *options)
 
