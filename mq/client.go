@@ -240,6 +240,7 @@ func (r *RabbitMqClient) declare(cfg DeclareCfg) {
 	for _, binding := range cfg.Bindings {
 		if binding.Key == "" {
 			log.Fatal(stdcodes.InitializingRabbitMqError, "declare empty binding key")
+			log.Warn(stdcodes.InitializingRabbitMqError, "declare empty binding key")
 		}
 		queue, found := queues[binding.QueueName]
 		if !found {

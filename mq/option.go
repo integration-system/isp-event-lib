@@ -2,6 +2,7 @@ package mq
 
 import (
 	"fmt"
+	"github.com/integration-system/isp-log/stdcodes"
 	"time"
 
 	log "github.com/integration-system/isp-log"
@@ -29,8 +30,13 @@ func (o *options) addDeadLetters() {
 		if common.DeadLetter {
 			//TODO: может создавать в любом случае, даже если в DeclareCfg не существует описаной очереди?
 			qptr := findQueue(o.declareConfiguration.Queues, common.QueueName)
+			if qptr == nil {
+				log.Warn(stdcodes.InitializingRabbitMqError,
+					fmt.Sprintf("can't find %s queue in declared queues", common.QueueName))
+				continue
+			}
 			deadLetterDeclareCfg := qptr.makeDeadLetterBranch()
-			o.declareConfiguration.Join(deadLetterDeclareCfg)
+			o.declareConfiguration = o.declareConfiguration.Join(deadLetterDeclareCfg)
 		}
 	}
 }
@@ -40,7 +46,7 @@ func (q *Queue) makeDeadLetterBranch() DeclareCfg {
 		q.Args = make(map[string]interface{}, 1)
 	} else if _, found := q.Args[deadLetterArg]; found {
 		//TODO: проверить, может ветки dLX еще существует, тогда создать
-		log.Warn(0, fmt.Sprint("queue ", q.Name, " already configured to DeadLetter by args"))
+		log.Warn(stdcodes.InitializingRabbitMqError, fmt.Sprint("queue ", q.Name, " already configured to DeadLetter by args"))
 		return DeclareCfg{}
 	}
 	dur := true
@@ -49,7 +55,7 @@ func (q *Queue) makeDeadLetterBranch() DeclareCfg {
 	return DeclareCfg{
 		Exchanges: []Exchange{{
 			Name:    q.Name + dlxExchangeSuffix,
-			Kind:    "direct",
+			Kind:    "fanout",
 			Durable: &dur,
 		}},
 		Queues: []Queue{{
@@ -59,7 +65,7 @@ func (q *Queue) makeDeadLetterBranch() DeclareCfg {
 		Bindings: []Binding{{
 			QueueName:    q.Name + dlxQueueSuffix,
 			ExchangeName: q.Name + dlxExchangeSuffix,
-			Key:          "",
+			Key:          q.Name,
 			Args:         nil,
 		}},
 	}
