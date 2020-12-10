@@ -3,6 +3,7 @@
 Клиент для взаимодейсвия с RabbitMQ
 
 ## Usage
+
 ### Client 
 ```go
 var rabbitClientConfiguration = structure.RabbitConfig {
@@ -34,13 +35,17 @@ func errorHandler(err error) {
 
 
 func main() {
-  mapConsumers := map[string]Consumer{
-  		"example": {
-  			QueueName:     "example.queue", //Название очереди
-  			Callback:       callback,       //Функция обработки сообщений из очереди
-  			ErrorHandler:   errorHandler,   //Функция обработки ошибок очереди
-  		},
-  	}
+	mapConsumers := map[string]mq.ConsumerCfg{
+		"exampleConsumer": mq.ByOneConsumerCfg{
+			CommonConsumerCfg: mq.CommonConsumerCfg{
+				QueueName:     "example.queue", //Название очереди
+				PrefetchCount: 1000,
+				DeadLetter:    true, //Включение Dead Letter Exchange
+			},
+			Callback:     callback,     //Функция обработки сообщений из очереди
+			ErrorHandler: errorHandler, //Функция обработки ошибок очереди
+		},
+	}
 
   client := NewRabbitClient()
   client.ReceiveConfiguration(rabbitClientConfiguration,
@@ -53,15 +58,12 @@ func main() {
 ### Publisher
 ```go
 func main() {
-  mapPublishers := map[string]Publisher{
-  		"example": {
-  			Exchange:     "example",        //Название точки маршрутизации
-  			ExchangeType: "direct",         //Тип точки маршрутизации (direct, funout)
-  			RoutingKey:   "example.queue",  //Ключ маршрутизации
-  			QueueName:    "example.queue",  //Название очереди
-  			Declare:      true,             //Автоматическое объявление очереди
-  		},
-  	}
+	mapPublishers := map[string]mq.PublisherCfg{
+		"examplePublisher": {
+			ExchangeName: "example.exchange", //Название точки маршрутизации
+			RoutingKey:   "example.queue",  //Ключ маршрутизации
+		},
+    }
 
   client := NewRabbitClient()
   client.ReceiveConfiguration(rabbitClientConfiguration,
@@ -69,6 +71,103 @@ func main() {
   )
   client.GetPublisher("example").Publish(amqp.Publishing{Body: []byte("example")})
   client.Close()
+}
+```
+
+### Example
+Пример показывает применение Dead Letter Exchange
+Использовано мануальное объявление declareCfg
+```go
+const (
+	publisherExchange = "example.exchange"
+	defaultQueueName  = "example.queue"
+)
+
+var rabbitClientConfiguration = structure.RabbitConfig {
+	User: "user",
+	Address: structure.AddressConfiguration{
+		IP:   "127.0.0.1",
+		Port: "5672",
+	},
+	Password: "password",
+}
+
+func callback(delivery mq.Delivery) {
+	msg := string(delivery.GetMessage())
+	if msg == "DLX" {
+		log.Printf("Nack(false) Received a message: %s", msg)
+		_ = delivery.Nack(false).Release()
+		return
+	}
+	log.Printf("Ack         Received a message: %s", msg)
+	_ = delivery.Ack().Release()
+}
+
+func errorHandler(err error) {
+	fmt.Println(err)
+}
+
+func main() {
+	mapConsumers := map[string]mq.ConsumerCfg{
+		"exampleConsumer": mq.ByOneConsumerCfg{
+			CommonConsumerCfg: mq.CommonConsumerCfg{
+				QueueName:     defaultQueueName, //Название очереди
+				PrefetchCount: 1000,
+				DeadLetter:    true, //enable DLX
+			},
+			Callback:     callback,     //Функция обработки сообщений из очереди
+			ErrorHandler: errorHandler, //Функция обработки ошибок очереди
+		},
+	}
+
+	mapPublishers := map[string]mq.PublisherCfg{
+		"examplePublisher": {
+			ExchangeName: publisherExchange, //Название точки маршрутизации
+			RoutingKey:   defaultQueueName,  //Ключ маршрутизации
+		},
+	}
+
+	dur := true
+	declareCfg := mq.DeclareCfg{
+		Exchanges: []mq.Exchange{{
+			Name:    publisherExchange,
+			Kind:    "direct",
+			Durable: &dur,
+		}},
+		Queues: []mq.Queue{{
+			Name:    defaultQueueName,
+			Durable: &dur,
+			//Сейчас если здесь будет задан параметр "x-dead-letter-exchange" то добавление не сработает
+			//Args: map[string]interface{}{"x-dead-letter-exchange": defaultQueueName+".exchange.DLX"},
+		}},
+		Bindings: []mq.Binding{{
+			QueueName: defaultQueueName,
+			ExchangeName: publisherExchange,
+			Key: defaultQueueName,
+		}},
+	}
+
+	client := mq.NewRabbitClient()
+	client.ReceiveConfiguration(rabbitClientConfiguration,
+		mq.WithConsumers(mapConsumers),
+		mq.WithPublishers(mapPublishers),
+		mq.WithDeclares(declareCfg),
+	)
+
+	// Подключение происходит асинхронно, для данного примера проще просто подождать
+	time.Sleep(200 *time.Millisecond)
+
+	err := client.GetPublisher("examplePublisher").Publish(amqp.Publishing{Body: []byte("example")})
+	if err != nil {
+		log.Printf("%s: %s", "example", err)
+	}
+	err = client.GetPublisher("examplePublisher").Publish(amqp.Publishing{Body: []byte("DLX")})
+	if err != nil {
+		log.Printf("%s: %s", "DLX", err)
+	}
+
+	time.Sleep(500 * time.Millisecond)
+	client.Close()
 }
 ```
 
@@ -99,6 +198,7 @@ client := NewRabbitClient()
 client.ReceiveConfiguration(rabbitClientConfiguration,
 	       WithPublishers(mapPublishers),
            WithConsumers(mapConsumers),
+           WithDeclares(declareCfg),
         )
 ```
 
@@ -138,6 +238,13 @@ WithConsumers(mapConsumers)
 WithPublishers(mapPublishers)
 ```
 
+### `func WithDeclares(declare DeclareCfg) Option`
+
+Инициализирует очереди, обменники и привязки
+```go
+WithDeclares(declareCfg)
+```
+
 ### `(*Delivery) GetMessage() []byte`
 
 Возвращает тело сообщения
@@ -155,7 +262,8 @@ delivery.Ack()
 
 ### `(d *Delivery) Nack(requeue bool) *Delivery`
 
-Изменяет флаг, указывающий что сообщение вернется в очередь
+Изменяет флаг, указывающий что сообщение вернется в очередь,
+если очередь поддерживает Dead Letter, то сообщение будет отправлено в очередь `имя_очереди.DLX`
 ```go
 delivery.Nack(false)
 ```

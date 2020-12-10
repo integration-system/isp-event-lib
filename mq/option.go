@@ -2,8 +2,9 @@ package mq
 
 import (
 	"fmt"
-	"github.com/integration-system/isp-log/stdcodes"
 	"time"
+
+	"github.com/integration-system/isp-log/stdcodes"
 
 	log "github.com/integration-system/isp-log"
 )
@@ -28,14 +29,13 @@ func (o *options) addDeadLetters() {
 	for _, consumerCfg := range o.consumersConfiguration {
 		common := consumerCfg.getCommon()
 		if common.DeadLetter {
-			//TODO: может создавать в любом случае, даже если в DeclareCfg не существует описаной очереди?
-			qptr := findQueue(o.declareConfiguration.Queues, common.QueueName)
-			if qptr == nil {
+			qPtr := findQueue(o.declareConfiguration.Queues, common.QueueName)
+			if qPtr == nil {
 				log.Warn(stdcodes.InitializingRabbitMqError,
 					fmt.Sprintf("can't find %s queue in declared queues", common.QueueName))
 				continue
 			}
-			deadLetterDeclareCfg := qptr.makeDeadLetterBranch()
+			deadLetterDeclareCfg := qPtr.makeDeadLetterBranch()
 			o.declareConfiguration = o.declareConfiguration.Join(deadLetterDeclareCfg)
 		}
 	}
@@ -45,7 +45,6 @@ func (q *Queue) makeDeadLetterBranch() DeclareCfg {
 	if q.Args == nil {
 		q.Args = make(map[string]interface{}, 1)
 	} else if _, found := q.Args[deadLetterArg]; found {
-		//TODO: проверить, может ветки dLX еще существует, тогда создать
 		log.Warn(stdcodes.InitializingRabbitMqError, fmt.Sprint("queue ", q.Name, " already configured to DeadLetter by args"))
 		return DeclareCfg{}
 	}
@@ -72,7 +71,7 @@ func (q *Queue) makeDeadLetterBranch() DeclareCfg {
 }
 
 func findQueue(queues []Queue, name string) *Queue {
-	for i, _ := range queues {
+	for i := range queues {
 		if queues[i].Name == name {
 			return &queues[i]
 		}
