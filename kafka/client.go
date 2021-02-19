@@ -1,14 +1,18 @@
 package kafka
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/integration-system/isp-event-lib/kafka/structure"
+	"github.com/integration-system/isp-lib/v2/structure"
+	log "github.com/integration-system/isp-log"
+	"github.com/segmentio/kafka-go"
 )
 
-type KafkaClient struct {
+type Client struct {
 	lastConfig structure.KafkaConfig
+	Addresses  []string
 
 	publishers              map[string]*publisher
 	publishersConfiguration map[string]PublisherCfg
@@ -16,11 +20,12 @@ type KafkaClient struct {
 	consumers              map[string]*consumer
 	consumersConfiguration map[string]ConsumerCfg
 
-	lock sync.Mutex
+	validBrokerAddress string
+	lock               sync.Mutex
 }
 
-func NewKafkaClient() *KafkaClient {
-	return &KafkaClient{
+func NewKafkaClient() *Client {
+	return &Client{
 		publishers:              make(map[string]*publisher),
 		publishersConfiguration: make(map[string]PublisherCfg),
 
@@ -32,14 +37,19 @@ func NewKafkaClient() *KafkaClient {
 	}
 }
 
-func (r *KafkaClient) ReceiveConfiguration(kafkaConfig structure.KafkaConfig, opts ...Option) {
+func (r *Client) ReceiveConfiguration(kafkaConfig structure.KafkaConfig, opts ...Option) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
+	var err error
 	if !cmp.Equal(r.lastConfig, kafkaConfig) {
 		r.Close()
-		// todo try to connect to kafka
+		r.validBrokerAddress, err = tryDial(kafkaConfig.AddressCfgs)
+		if err != nil {
+			log.Fatal(0, err)
+		}
 		r.lastConfig = kafkaConfig
+		r.Addresses = getAddresses(kafkaConfig)
 	}
 
 	options := defaultOptionals()
@@ -60,11 +70,11 @@ func (r *KafkaClient) ReceiveConfiguration(kafkaConfig structure.KafkaConfig, op
 	r.publishers, r.publishersConfiguration = newPublishers, options.publishersConfiguration
 }
 
-func (r *KafkaClient) GetPublisher(name string) *publisher {
+func (r *Client) GetPublisher(name string) *publisher {
 	return r.publishers[name]
 }
 
-func (r *KafkaClient) newPublishers(config map[string]PublisherCfg) (map[string]*publisher, map[string]*publisher) {
+func (r *Client) newPublishers(config map[string]PublisherCfg) (map[string]*publisher, map[string]*publisher) {
 	newPublishers, oldPublisher := make(map[string]*publisher), make(map[string]*publisher)
 	for key, publisher := range r.publishers {
 		newConfiguration, found := config[key]
@@ -82,14 +92,17 @@ func (r *KafkaClient) newPublishers(config map[string]PublisherCfg) (map[string]
 	return newPublishers, oldPublisher
 }
 
-func (r *KafkaClient) newConsumers(config map[string]ConsumerCfg) (map[string]*consumer, map[string]*consumer) {
+func (r *Client) newConsumers(config map[string]ConsumerCfg) (map[string]*consumer, map[string]*consumer) {
 	newConsumers, oldConsumer := make(map[string]*consumer), make(map[string]*consumer)
 	for key, consumer := range r.consumers {
 		newConfiguration, found := config[key]
 		if found && cmp.Equal(r.consumersConfiguration[key], newConfiguration) {
 			newConsumers[key] = consumer
 		} else {
-			consumer.reader.Close()
+			err := consumer.reader.Close()
+			if err != nil {
+				log.Errorf(0, "can't close consumer %s: %v", consumer.name, err)
+			}
 			oldConsumer[key] = consumer
 		}
 	}
@@ -101,30 +114,35 @@ func (r *KafkaClient) newConsumers(config map[string]ConsumerCfg) (map[string]*c
 	return newConsumers, oldConsumer
 }
 
-func (r *KafkaClient) makePublisher(publisherCfg PublisherCfg, namePublisher string) *publisher {
-	return createPublisher(&publisherCfg, r.lastConfig, namePublisher)
+func (r *Client) makePublisher(publisherCfg PublisherCfg, namePublisher string) *publisher {
+	publisher := &publisher{writer: newWriter(publisherCfg)}
+	publisher.writer.Addr = kafka.TCP(r.validBrokerAddress)
+	publisher.writer.Transport = &kafka.Transport{SASL: getSASL(r.lastConfig.KafkaAuth)}
+	publisher.writer.ErrorLogger = logger{loggerPrefix: fmt.Sprintf("[publisher: %s]", namePublisher)}
+	return publisher
 }
 
-func (r *KafkaClient) makeConsumer(consumerCfg ConsumerCfg, nameConsumer string) *consumer {
-	newConsumer := createConsumer(&consumerCfg, r.lastConfig, nameConsumer)
+func (r *Client) makeConsumer(consumerCfg ConsumerCfg, nameConsumer string) *consumer {
+	newConsumer := &consumer{name: nameConsumer}
+	newConsumer.createReader(consumerCfg, r.Addresses, r.lastConfig.KafkaAuth)
+	newConsumer.config = consumerCfg
+
 	go newConsumer.start()
 	return newConsumer
 }
 
-func (r *KafkaClient) Close() {
-	if len(r.publishers) != 0 {
-		for _, publisher := range r.publishers {
-			publisher.close()
-		}
+func (r *Client) Close() {
+	for _, publisher := range r.publishers {
+		publisher.close()
 	}
-	if len(r.consumers) != 0 {
-		for _, consumer := range r.consumers {
-			consumer.close()
-		}
+	for _, consumer := range r.consumers {
+		consumer.close()
 	}
 	r.lastConfig = structure.KafkaConfig{}
 	r.publishers = make(map[string]*publisher)
 	r.publishersConfiguration = make(map[string]PublisherCfg)
 	r.consumers = make(map[string]*consumer)
 	r.consumersConfiguration = make(map[string]ConsumerCfg)
+	r.Addresses = nil
+	r.validBrokerAddress = ""
 }

@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/integration-system/isp-event-lib/kafka/structure"
+	"github.com/integration-system/isp-lib/v2/structure"
 	log "github.com/integration-system/isp-log"
 	"github.com/segmentio/kafka-go"
 )
@@ -15,7 +15,8 @@ type consumer struct {
 	reader       *kafka.Reader
 	callback     func(msg Message)
 	errorHandler func(error)
-	config       *ConsumerCfg
+	config       ConsumerCfg
+	name         string
 }
 
 type ConsumerCfg struct {
@@ -30,6 +31,13 @@ type ConsumerAdvancedCfg struct {
 	MinBytes int
 	// Default: 1Mb
 	MaxBytes int
+
+	// GroupBalancers is the priority-ordered list of client-side consumer group
+	// balancing strategies that will be offered to the coordinator.  The first
+	// strategy that all group members support will be chosen by the leader.
+	//
+	// Default: [Range, RoundRobin]
+	GroupBalancers []kafka.GroupBalancer
 
 	// CommitInterval indicates the interval at which offsets are committed to
 	// the broker.  If 0, commits will be handled synchronously.
@@ -80,22 +88,22 @@ func (c *consumer) start() {
 }
 
 func (c *consumer) close() {
-	err := c.reader.Close() // todo  async??
+	err := c.reader.Close()
 	if err != nil {
 		log.Errorf(0, "can't close consumer %s with error: %v", c.config.TopicName, err) // todo code; need if error logger used?
 	}
 }
 
-func (c *consumer) createReader(consumerCfg *ConsumerCfg, kafkaCfg structure.KafkaConfig, nameConsumer string) {
+func (c *consumer) createReader(consumerCfg ConsumerCfg, addrs []string, kafkaAuth *structure.KafkaAuth) {
 	readerCfg := makeReaderCfg(consumerCfg)
 
-	readerCfg.Brokers = []string{kafkaCfg.GetAddress()}
+	readerCfg.Brokers = addrs
 	readerCfg.Topic = consumerCfg.TopicName
 	readerCfg.GroupID = consumerCfg.GroupID
 	readerCfg.QueueCapacity = consumerCfg.PrefetchCount
 
-	if kafkaCfg.KafkaAuth != nil {
-		readerCfg.Dialer = &kafka.Dialer{SASLMechanism: getSASL(kafkaCfg)}
+	if kafkaAuth != nil {
+		readerCfg.Dialer = &kafka.Dialer{SASLMechanism: getSASL(kafkaAuth)}
 	}
 
 	if consumerCfg.Callback == nil {
@@ -108,12 +116,12 @@ func (c *consumer) createReader(consumerCfg *ConsumerCfg, kafkaCfg structure.Kaf
 	c.errorHandler = consumerCfg.ErrorHandler
 
 	readerCfg.StartOffset = kafka.LastOffset
-	readerCfg.ErrorLogger = logger{loggerPrefix: fmt.Sprintf("[consumer %s]", nameConsumer)}
+	readerCfg.ErrorLogger = logger{loggerPrefix: fmt.Sprintf("[consumer %s]", c.name)}
 
 	c.reader = kafka.NewReader(readerCfg)
 }
 
-func makeReaderCfg(consumerCfg *ConsumerCfg) kafka.ReaderConfig {
+func makeReaderCfg(consumerCfg ConsumerCfg) kafka.ReaderConfig {
 	if consumerCfg.AdvancedCfg == nil {
 		return kafka.ReaderConfig{}
 	}
@@ -121,6 +129,7 @@ func makeReaderCfg(consumerCfg *ConsumerCfg) kafka.ReaderConfig {
 	return kafka.ReaderConfig{
 		MinBytes:               consumerCfg.AdvancedCfg.MinBytes,
 		MaxBytes:               consumerCfg.AdvancedCfg.MaxBytes,
+		GroupBalancers:         consumerCfg.AdvancedCfg.GroupBalancers,
 		CommitInterval:         consumerCfg.AdvancedCfg.CommitInterval,
 		PartitionWatchInterval: consumerCfg.AdvancedCfg.PartitionWatchInterval,
 		WatchPartitionChanges:  consumerCfg.AdvancedCfg.WatchPartitionChanges,
@@ -128,9 +137,21 @@ func makeReaderCfg(consumerCfg *ConsumerCfg) kafka.ReaderConfig {
 	}
 }
 
-func createConsumer(consumerCfg *ConsumerCfg, kafkaCfg structure.KafkaConfig, nameConsumer string) *consumer {
-	consumer := &consumer{}
-	consumer.createReader(consumerCfg, kafkaCfg, nameConsumer)
-	consumer.config = consumerCfg
-	return consumer
+type Message struct {
+	msg       kafka.Message
+	committed *bool
+}
+
+func (m Message) Commit() {
+	*m.committed = true
+}
+
+func (m *Message) Value() []byte {
+	return m.msg.Value
+}
+func (m *Message) Key() []byte {
+	return m.msg.Key
+}
+func (m *Message) FullMessage() kafka.Message {
+	return m.msg
 }

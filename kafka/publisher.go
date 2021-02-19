@@ -2,10 +2,8 @@ package kafka
 
 import (
 	"context"
-	"fmt"
 	"time"
 
-	"github.com/integration-system/isp-event-lib/kafka/structure"
 	log "github.com/integration-system/isp-log"
 	"github.com/segmentio/kafka-go"
 )
@@ -15,9 +13,9 @@ type RequiredAcks int
 const (
 	requiredAckOffset = 10
 
-	RequireNone RequiredAcks = RequiredAcks(int(kafka.RequireNone) + requiredAckOffset)
-	RequireOne  RequiredAcks = RequiredAcks(int(kafka.RequireOne) + requiredAckOffset)
-	RequireAll  RequiredAcks = RequiredAcks(int(kafka.RequireAll) + requiredAckOffset)
+	RequireNone = RequiredAcks(kafka.RequireNone + requiredAckOffset)
+	RequireOne  = RequiredAcks(kafka.RequireOne + requiredAckOffset)
+	RequireAll  = RequiredAcks(kafka.RequireAll + requiredAckOffset)
 )
 
 func (r RequiredAcks) mappingRequiredAcks() kafka.RequiredAcks {
@@ -86,7 +84,7 @@ func (p *publisher) close() {
 	}
 }
 
-func newWriter(publisherCfg *PublisherCfg) *kafka.Writer {
+func newWriter(publisherCfg PublisherCfg) *kafka.Writer {
 	if publisherCfg.AdvancedCfg == nil {
 		return &kafka.Writer{
 			Topic:        publisherCfg.TopicName,
@@ -105,12 +103,4 @@ func newWriter(publisherCfg *PublisherCfg) *kafka.Writer {
 			Compression:  publisherCfg.AdvancedCfg.Compression,
 		}
 	}
-}
-
-func createPublisher(publisherCfg *PublisherCfg, kafkaCfg structure.KafkaConfig, namePublisher string) *publisher {
-	publisher := &publisher{writer: newWriter(publisherCfg)}
-	publisher.writer.Addr = kafka.TCP(kafkaCfg.GetAddress())
-	publisher.writer.Transport = &kafka.Transport{SASL: getSASL(kafkaCfg)}
-	publisher.writer.ErrorLogger = logger{loggerPrefix: fmt.Sprintf("[publisher: %s]", namePublisher)}
-	return publisher
 }
