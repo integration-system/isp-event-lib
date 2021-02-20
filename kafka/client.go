@@ -12,7 +12,7 @@ import (
 
 type Client struct {
 	lastConfig structure.KafkaConfig
-	Addresses  []string
+	addresses  []string
 
 	publishers              map[string]*publisher
 	publishersConfiguration map[string]PublisherCfg
@@ -24,7 +24,7 @@ type Client struct {
 	lock               sync.Mutex
 }
 
-func NewKafkaClient() *Client {
+func NewClient() *Client {
 	return &Client{
 		publishers:              make(map[string]*publisher),
 		publishersConfiguration: make(map[string]PublisherCfg),
@@ -49,7 +49,7 @@ func (r *Client) ReceiveConfiguration(kafkaConfig structure.KafkaConfig, opts ..
 			log.Fatal(0, err)
 		}
 		r.lastConfig = kafkaConfig
-		r.Addresses = getAddresses(kafkaConfig)
+		r.addresses = getAddresses(kafkaConfig)
 	}
 
 	options := defaultOptionals()
@@ -99,10 +99,6 @@ func (r *Client) newConsumers(config map[string]ConsumerCfg) (map[string]*consum
 		if found && cmp.Equal(r.consumersConfiguration[key], newConfiguration) {
 			newConsumers[key] = consumer
 		} else {
-			err := consumer.reader.Close()
-			if err != nil {
-				log.Errorf(0, "can't close consumer %s: %v", consumer.name, err)
-			}
 			oldConsumer[key] = consumer
 		}
 	}
@@ -124,7 +120,7 @@ func (r *Client) makePublisher(publisherCfg PublisherCfg, namePublisher string) 
 
 func (r *Client) makeConsumer(consumerCfg ConsumerCfg, nameConsumer string) *consumer {
 	newConsumer := &consumer{name: nameConsumer}
-	newConsumer.createReader(consumerCfg, r.Addresses, r.lastConfig.KafkaAuth)
+	newConsumer.createReader(consumerCfg, r.addresses, r.lastConfig.KafkaAuth)
 	newConsumer.config = consumerCfg
 
 	go newConsumer.start()
@@ -143,6 +139,6 @@ func (r *Client) Close() {
 	r.publishersConfiguration = make(map[string]PublisherCfg)
 	r.consumers = make(map[string]*consumer)
 	r.consumersConfiguration = make(map[string]ConsumerCfg)
-	r.Addresses = nil
+	r.addresses = nil
 	r.validBrokerAddress = ""
 }

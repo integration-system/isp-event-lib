@@ -1,6 +1,9 @@
 package kafka
 
 import (
+	"context"
+	"time"
+
 	"github.com/integration-system/isp-lib/v2/structure"
 	log "github.com/integration-system/isp-log"
 	"github.com/pkg/errors"
@@ -14,6 +17,8 @@ const (
 	AuthTypePlain       = "plain"
 	AuthTypeScramSha256 = "scram_sha256"
 	AuthTypeScramSha512 = "scram_sha512"
+
+	dialTimeout = 2 * time.Second
 )
 
 type logger struct {
@@ -54,8 +59,10 @@ func getSASL(kafkaAuth *structure.KafkaAuth) sasl.Mechanism {
 func getScrumAlgo(algirithm string) scram.Algorithm {
 	if algirithm == AuthTypeScramSha256 {
 		return scram.SHA256
-	} else /*if algirithm == AuthTypeScramSha256*/ {
+	} else if algirithm == AuthTypeScramSha256 {
 		return scram.SHA512
+	} else {
+		panic("Scrum type mismatch")
 	}
 }
 
@@ -69,8 +76,10 @@ func getAddresses(kafkaConfig structure.KafkaConfig) []string {
 
 func tryDial(addressCfgs []structure.AddressConfiguration) (string, error) {
 	for _, adrCfg := range addressCfgs {
-		adr := adrCfg.IP + ":" + adrCfg.Port
-		conn, err := kafka.Dial("tcp", adr)
+		adr := adrCfg.GetAddress()
+		ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
+		conn, err := kafka.DialContext(ctx, "tcp", adr)
+		cancel()
 		if err == nil && conn != nil {
 			_ = conn.Close()
 			return adr, nil
