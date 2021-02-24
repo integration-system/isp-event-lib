@@ -13,13 +13,7 @@ import (
 	"github.com/segmentio/kafka-go/sasl/scram"
 )
 
-const (
-	AuthTypePlain       = "plain"
-	AuthTypeScramSha256 = "scram_sha256"
-	AuthTypeScramSha512 = "scram_sha512"
-
-	dialTimeout = 2 * time.Second
-)
+const dialTimeout = 2 * time.Second
 
 type logger struct {
 	loggerPrefix string
@@ -40,9 +34,9 @@ func getSASL(kafkaAuth *structure.KafkaAuth) sasl.Mechanism {
 	)
 
 	switch kafkaAuth.AuthType {
-	case AuthTypePlain:
+	case structure.KafkaAuthTypePlain:
 		saslMechanism = plain.Mechanism{Username: kafkaAuth.User, Password: kafkaAuth.Password}
-	case AuthTypeScramSha256, AuthTypeScramSha512:
+	case structure.KafkaAuthTypeScramSha256, structure.KafkaAuthTypeScramSha512:
 		saslMechanism, err = scram.Mechanism(getScrumAlgo(kafkaAuth.AuthType),
 			kafkaAuth.User,
 			kafkaAuth.Password,
@@ -57,9 +51,9 @@ func getSASL(kafkaAuth *structure.KafkaAuth) sasl.Mechanism {
 }
 
 func getScrumAlgo(algirithm string) scram.Algorithm {
-	if algirithm == AuthTypeScramSha256 {
+	if algirithm == structure.KafkaAuthTypeScramSha256 {
 		return scram.SHA256
-	} else if algirithm == AuthTypeScramSha256 {
+	} else if algirithm == structure.KafkaAuthTypeScramSha256 {
 		return scram.SHA512
 	} else {
 		panic("Scrum type mismatch")
@@ -69,7 +63,7 @@ func getScrumAlgo(algirithm string) scram.Algorithm {
 func getAddresses(kafkaConfig structure.KafkaConfig) []string {
 	addresses := make([]string, 0, len(kafkaConfig.AddressCfgs))
 	for _, adrCfg := range kafkaConfig.AddressCfgs {
-		addresses = append(addresses, adrCfg.IP+":"+adrCfg.Port)
+		addresses = append(addresses, adrCfg.GetAddress())
 	}
 	return addresses
 }
