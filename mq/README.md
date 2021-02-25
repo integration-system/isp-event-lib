@@ -5,9 +5,9 @@
 ## Usage
 ### Client 
 ```go
-var rabbitClientConfiguration = structure.RabbitConfig {
+var rabbitClientConfiguration = mq.Config {
 	User: "user",
-	Address: structure.AddressConfiguration{
+	Address:  event.AddressConfiguration{
 		IP:   "127.0.0.1",
 		Port: "5672",
 	},
@@ -92,7 +92,7 @@ func main() {
 client := NewRabbitClient()
 ```
 
-### `(*RabbitMqClient)  ReceiveConfiguration(rabbitConfig structure.RabbitConfig, opts ...Option)`
+### `(*RabbitMqClient)  ReceiveConfiguration(rabbitConfig RabbitConfig, opts ...Option)`
 
 Инициализирует объект rabbitMqClient
 ```go

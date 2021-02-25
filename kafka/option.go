@@ -19,10 +19,9 @@ func WithPublishers(publishers map[string]PublisherCfg) Option {
 	}
 }
 
-func defaultOptionals() *options {
+func defaultOptions() *options {
 	return &options{
 		consumersConfiguration:  make(map[string]ConsumerCfg),
 		publishersConfiguration: make(map[string]PublisherCfg),
-		//timeout:                 defaultTimeout,
 	}
 }

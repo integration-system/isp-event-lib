@@ -37,7 +37,7 @@ func WithAwaitConsumersTimeout(timeout time.Duration) Option {
 	}
 }
 
-func defaultOptionals() *options {
+func defaultOptions() *options {
 	return &options{
 		consumersConfiguration:  make(map[string]ConsumerCfg),
 		publishersConfiguration: make(map[string]PublisherCfg),

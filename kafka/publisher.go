@@ -80,7 +80,7 @@ func (p *publisher) Publish(ctx context.Context, msgs ...kafka.Message) error {
 func (p *publisher) close() {
 	err := p.writer.Close()
 	if err != nil {
-		log.Errorf(0, "can't close consumer %s with error: %v", p.config.TopicName, err) // todo code; need if error logger used?
+		log.Errorf(0, "can't close consumer %s with error: %v", p.config.TopicName, err)
 	}
 }
 

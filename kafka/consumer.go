@@ -6,7 +6,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/integration-system/isp-lib/v2/structure"
 	log "github.com/integration-system/isp-log"
 	"github.com/segmentio/kafka-go"
 )
@@ -75,14 +74,13 @@ func (c *consumer) start() {
 			if err == io.EOF {
 				return
 			}
-			log.Errorf(0, "while reading message from topic %v occurred an error, %v", c.config.TopicName, err) // todo code; need if error logger used?
-			c.errorHandler(err)
+			c.errorHandler(fmt.Errorf("while reading message from topic %v occurred an error, %w", c.config.TopicName, err))
 		}
 		commit = false
 		c.callback(Message{msg: msg, committed: &commit}) // ctx??
 		if commit {
 			err = c.reader.CommitMessages(ctx, msg)
-			log.Errorf(0, "while committing message from topic %v occurred an error, %v", c.config.TopicName, err) // todo code; need if error logger used?
+			c.errorHandler(fmt.Errorf("while committing message from topic %v occurred an error, %w", c.config.TopicName, err))
 		}
 	}
 }
@@ -90,11 +88,11 @@ func (c *consumer) start() {
 func (c *consumer) close() {
 	err := c.reader.Close()
 	if err != nil {
-		log.Errorf(0, "can't close consumer %s with error: %v", c.config.TopicName, err) // todo code; need if error logger used?
+		log.Errorf(0, "can't close consumer %s with error: %v", c.config.TopicName, err)
 	}
 }
 
-func (c *consumer) createReader(consumerCfg ConsumerCfg, addrs []string, kafkaAuth *structure.KafkaAuth) {
+func (c *consumer) createReader(consumerCfg ConsumerCfg, addrs []string, kafkaAuth *Authentication) {
 	readerCfg := makeReaderCfg(consumerCfg)
 
 	readerCfg.Brokers = addrs

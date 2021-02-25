@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/integration-system/isp-lib/v2/structure"
+	"github.com/integration-system/isp-event-lib/event"
 	log "github.com/integration-system/isp-log"
 	"github.com/pkg/errors"
 	"github.com/segmentio/kafka-go"
@@ -13,7 +13,13 @@ import (
 	"github.com/segmentio/kafka-go/sasl/scram"
 )
 
-const dialTimeout = 2 * time.Second
+const (
+	AuthTypePlain       = "plain"
+	AuthTypeScramSha256 = "scram_sha256"
+	AuthTypeScramSha512 = "scram_sha512"
+
+	dialTimeout = 2 * time.Second
+)
 
 type logger struct {
 	loggerPrefix string
@@ -23,7 +29,7 @@ func (l logger) Printf(format string, args ...interface{}) {
 	log.Errorf(0, l.loggerPrefix+format, args...)
 }
 
-func getSASL(kafkaAuth *structure.KafkaAuth) sasl.Mechanism {
+func getSASL(kafkaAuth *Authentication) sasl.Mechanism {
 	if kafkaAuth == nil {
 		return nil
 	}
@@ -34,9 +40,9 @@ func getSASL(kafkaAuth *structure.KafkaAuth) sasl.Mechanism {
 	)
 
 	switch kafkaAuth.AuthType {
-	case structure.KafkaAuthTypePlain:
+	case AuthTypePlain:
 		saslMechanism = plain.Mechanism{Username: kafkaAuth.User, Password: kafkaAuth.Password}
-	case structure.KafkaAuthTypeScramSha256, structure.KafkaAuthTypeScramSha512:
+	case AuthTypeScramSha256, AuthTypeScramSha512:
 		saslMechanism, err = scram.Mechanism(getScrumAlgo(kafkaAuth.AuthType),
 			kafkaAuth.User,
 			kafkaAuth.Password,
@@ -51,16 +57,16 @@ func getSASL(kafkaAuth *structure.KafkaAuth) sasl.Mechanism {
 }
 
 func getScrumAlgo(algirithm string) scram.Algorithm {
-	if algirithm == structure.KafkaAuthTypeScramSha256 {
+	if algirithm == AuthTypeScramSha256 {
 		return scram.SHA256
-	} else if algirithm == structure.KafkaAuthTypeScramSha256 {
+	} else if algirithm == AuthTypeScramSha256 {
 		return scram.SHA512
 	} else {
 		panic("Scrum type mismatch")
 	}
 }
 
-func getAddresses(kafkaConfig structure.KafkaConfig) []string {
+func getAddresses(kafkaConfig Config) []string {
 	addresses := make([]string, 0, len(kafkaConfig.AddressCfgs))
 	for _, adrCfg := range kafkaConfig.AddressCfgs {
 		addresses = append(addresses, adrCfg.GetAddress())
@@ -68,7 +74,7 @@ func getAddresses(kafkaConfig structure.KafkaConfig) []string {
 	return addresses
 }
 
-func tryDial(addressCfgs []structure.AddressConfiguration) (string, error) {
+func tryDial(addressCfgs []event.AddressConfiguration) (string, error) {
 	for _, adrCfg := range addressCfgs {
 		adr := adrCfg.GetAddress()
 		ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)

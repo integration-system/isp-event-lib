@@ -5,13 +5,12 @@ import (
 	"sync"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/integration-system/isp-lib/v2/structure"
 	log "github.com/integration-system/isp-log"
 	"github.com/segmentio/kafka-go"
 )
 
 type Client struct {
-	lastConfig structure.KafkaConfig
+	lastConfig Config
 	addresses  []string
 
 	publishers              map[string]*publisher
@@ -32,12 +31,12 @@ func NewClient() *Client {
 		consumers:              make(map[string]*consumer),
 		consumersConfiguration: make(map[string]ConsumerCfg),
 
-		lastConfig: structure.KafkaConfig{},
+		lastConfig: Config{},
 		lock:       sync.Mutex{},
 	}
 }
 
-func (r *Client) ReceiveConfiguration(kafkaConfig structure.KafkaConfig, opts ...Option) {
+func (r *Client) ReceiveConfiguration(kafkaConfig Config, opts ...Option) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -52,7 +51,7 @@ func (r *Client) ReceiveConfiguration(kafkaConfig structure.KafkaConfig, opts ..
 		r.addresses = getAddresses(kafkaConfig)
 	}
 
-	options := defaultOptionals()
+	options := defaultOptions()
 	for _, option := range opts {
 		option(options)
 	}
@@ -134,7 +133,7 @@ func (r *Client) Close() {
 	for _, consumer := range r.consumers {
 		consumer.close()
 	}
-	r.lastConfig = structure.KafkaConfig{}
+	r.lastConfig = Config{}
 	r.publishers = make(map[string]*publisher)
 	r.publishersConfiguration = make(map[string]PublisherCfg)
 	r.consumers = make(map[string]*consumer)
