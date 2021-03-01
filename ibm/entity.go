@@ -2,7 +2,6 @@ package ibm
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/integration-system/isp-event-lib/event"
 )
@@ -19,12 +18,4 @@ func (rc Config) GetUri() string {
 	} else {
 		return fmt.Sprintf("amqp://%s:%s@%s", rc.User, rc.Password, rc.Address.GetAddress())
 	}
-}
-
-func (rc Config) ReconnectionTimeout() time.Duration {
-	/*timeout := rc.ReconnectionTimeoutMs
-	if timeout <= 0 {
-		timeout = defaultReconnectionTimeout
-	}*/
-	return 3 * time.Millisecond
 }
