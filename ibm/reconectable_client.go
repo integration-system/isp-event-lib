@@ -11,7 +11,6 @@ import (
 	"github.com/integration-system/cony"
 	"github.com/integration-system/go-amqp"
 	"github.com/integration-system/isp-event-lib/mq"
-	"github.com/integration-system/isp-lib/v2/structure"
 	log "github.com/integration-system/isp-log"
 	"github.com/integration-system/isp-log/stdcodes"
 	"github.com/pkg/errors"
@@ -24,7 +23,7 @@ type reconnectableClient struct {
 	publishers map[string]*publisher
 	consumers  map[string]consumer
 
-	RabbitConfig structure.RabbitConfig
+	RabbitConfig Config
 	opts         *options
 	lock         sync.RWMutex
 
@@ -33,7 +32,7 @@ type reconnectableClient struct {
 	reconnectAttempt int32
 }
 
-func newReconnectableClient(config structure.RabbitConfig, opts *options) *reconnectableClient {
+func newReconnectableClient(config Config, opts *options) *reconnectableClient {
 	c := &reconnectableClient{
 		publishers:   make(map[string]*publisher),
 		consumers:    make(map[string]consumer),

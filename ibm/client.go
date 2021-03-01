@@ -5,7 +5,6 @@ import (
 	"sync/atomic"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/integration-system/isp-lib/v2/structure"
 )
 
 func NewAMQPClient() *AMQPClient {
@@ -18,7 +17,7 @@ type AMQPClient struct {
 }
 
 // ReceiveConfiguration should not be called concurrently.
-func (r *AMQPClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfig, opts ...Option) {
+func (r *AMQPClient) ReceiveConfiguration(conf Config, opts ...Option) {
 	options := defaultOptions()
 	for _, option := range opts {
 		option(options)
@@ -27,10 +26,10 @@ func (r *AMQPClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfig, o
 	cli, _ := r.client.Load().(*reconnectableClient)
 
 	if cli == nil {
-		cli = newReconnectableClient(rabbitConfig, options)
-	} else if !cmp.Equal(cli.RabbitConfig, rabbitConfig) {
+		cli = newReconnectableClient(conf, options)
+	} else if !cmp.Equal(cli.RabbitConfig, conf) {
 		cli.Close()
-		cli = newReconnectableClient(rabbitConfig, options)
+		cli = newReconnectableClient(conf, options)
 	} else {
 		cli.UpdateOptions(options)
 	}

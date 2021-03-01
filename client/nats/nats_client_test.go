@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/integration-system/isp-event-lib/client"
+	"github.com/integration-system/isp-event-lib/event"
 	"github.com/integration-system/isp-lib-test/ctx"
 	"github.com/integration-system/isp-lib-test/docker"
-	"github.com/integration-system/isp-lib/v2/structure"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -62,9 +62,9 @@ func setup(_ *ctx.TestContext, runTest func() int) int {
 func TestNatsEventBustClient_NewConsumer(t *testing.T) {
 	assert := assert.New(t)
 
-	cli, err := NewNatsEventBusClient(structure.NatsConfig{
+	cli, err := NewNatsEventBusClient(Config{
 		ClusterId: "test-cluster",
-		Address: structure.AddressConfiguration{
+		Address: event.AddressConfiguration{
 			Port: "4222",
 			IP:   "localhost",
 		},
@@ -116,9 +116,9 @@ func TestNatsEventBustClient_NewConsumer(t *testing.T) {
 func TestNatsEventBustClient_NewExclusiveConsumer(t *testing.T) {
 	assert := assert.New(t)
 
-	cli, err := NewNatsEventBusClient(structure.NatsConfig{
+	cli, err := NewNatsEventBusClient(Config{
 		ClusterId: "test-cluster",
-		Address: structure.AddressConfiguration{
+		Address: event.AddressConfiguration{
 			Port: "4222",
 			IP:   "localhost",
 		},

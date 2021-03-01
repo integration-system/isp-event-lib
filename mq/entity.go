@@ -1,9 +1,30 @@
 package mq
 
+import (
+	"fmt"
+
+	"github.com/integration-system/isp-event-lib/event"
+)
+
 const (
 	FanoutExchange = "fanout"
 	DirectExchange = "direct"
 )
+
+type Config struct {
+	Address  event.AddressConfiguration `valid:"required~Required" schema:"Адрес RabbitMQ"`
+	Vhost    string                     `schema:"Виртуальный хост,для изоляции очередей"`
+	User     string                     `schema:"Логин"`
+	Password string                     `schema:"Пароль"`
+}
+
+func (rc Config) GetUri() string {
+	if rc.User == "" {
+		return fmt.Sprintf("amqp://%s/%s", rc.Address.GetAddress(), rc.Vhost)
+	} else {
+		return fmt.Sprintf("amqp://%s:%s@%s/%s", rc.User, rc.Password, rc.Address.GetAddress(), rc.Vhost)
+	}
+}
 
 type CommonConsumerCfg struct {
 	QueueName     string `valid:"required~Required" schema:"Название очереди"`

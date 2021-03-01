@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/integration-system/isp-event-lib/client"
-	"github.com/integration-system/isp-lib/v2/structure"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nuid"
 	"github.com/nats-io/stan.go"
@@ -23,7 +22,7 @@ type natsEventBustClient struct {
 	natsConn *nats.Conn
 	subs     map[string]*natsConsumer
 	mu       sync.RWMutex
-	cfg      structure.NatsConfig
+	cfg      Config
 	clientId string
 
 	errorsCh chan error
@@ -120,7 +119,7 @@ func (c *natsEventBustClient) notifyError(err error) {
 	}
 }
 
-func NewNatsEventBusClient(cfg structure.NatsConfig, clientId string) (client.EventBusClient, error) {
+func NewNatsEventBusClient(cfg Config, clientId string) (client.EventBusClient, error) {
 	client := &natsEventBustClient{
 		cfg:      cfg,
 		clientId: clientId,
@@ -153,7 +152,7 @@ func NewNatsEventBusClient(cfg structure.NatsConfig, clientId string) (client.Ev
 	return client, nil
 }
 
-func newStanConn(natsConfig structure.NatsConfig, clientId string, natsConn *nats.Conn) (stan.Conn, error) {
+func newStanConn(natsConfig Config, clientId string, natsConn *nats.Conn) (stan.Conn, error) {
 	addr := natsConfig.Address.GetAddress()
 	pingInterval := natsConfig.PintIntervalSec
 	if pingInterval <= 0 {

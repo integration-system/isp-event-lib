@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/integration-system/go-amqp"
+	"github.com/integration-system/isp-event-lib/event"
 	"github.com/integration-system/isp-event-lib/mq"
 	"github.com/integration-system/isp-lib-test/ctx"
 	"github.com/integration-system/isp-lib-test/docker"
-	"github.com/integration-system/isp-lib/v2/structure"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -74,8 +74,8 @@ func TestAmqpClient_ConnOnUnexpectedDisconnect(t *testing.T) {
 		}),
 	}
 
-	cfg := structure.RabbitConfig{
-		Address: structure.AddressConfiguration{
+	cfg := Config{
+		Address: event.AddressConfiguration{
 			Port: "5672",
 			IP:   "127.0.0.3",
 		},
@@ -227,7 +227,7 @@ func TestClient_UpdateOptions(t *testing.T) {
 }
 
 func createTestClient(queueName string, callback func(delivery Delivery), errorHandler func(err error),
-) (*AMQPClient, structure.RabbitConfig) {
+) (*AMQPClient, Config) {
 	publishers := map[string]mq.PublisherCfg{
 		queueName: {
 			RoutingKey: queueName,
@@ -242,8 +242,8 @@ func createTestClient(queueName string, callback func(delivery Delivery), errorH
 			ErrorHandler: errorHandler,
 		},
 	}
-	cfg := structure.RabbitConfig{
-		Address: structure.AddressConfiguration{
+	cfg := Config{
+		Address: event.AddressConfiguration{
 			Port: "5672",
 			IP:   "127.0.0.3",
 		},

@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/integration-system/cony"
-	"github.com/integration-system/isp-lib/v2/structure"
 	log "github.com/integration-system/isp-log"
 	"github.com/integration-system/isp-log/stdcodes"
 )
@@ -19,14 +18,14 @@ func NewRabbitClient() *RabbitMqClient {
 		consumers:              make(map[string]consumer),
 		consumersConfiguration: make(map[string]ConsumerCfg),
 
-		lastConfig: structure.RabbitConfig{},
+		lastConfig: Config{},
 		lock:       sync.Mutex{},
 	}
 }
 
 type RabbitMqClient struct {
 	cli        *cony.Client
-	lastConfig structure.RabbitConfig
+	lastConfig Config
 
 	publishers              map[string]*publisher
 	publishersConfiguration map[string]PublisherCfg
@@ -40,7 +39,7 @@ type RabbitMqClient struct {
 	timeout time.Duration
 }
 
-func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfig, opts ...Option) {
+func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig Config, opts ...Option) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -61,7 +60,7 @@ func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig structure.RabbitConfi
 		return
 	}
 
-	options := defaultOptionals()
+	options := defaultOptions()
 	for _, option := range opts {
 		option(options)
 	}
@@ -147,7 +146,7 @@ func (r *RabbitMqClient) close() {
 	if r.cli != nil {
 		r.cli.Close()
 	}
-	r.lastConfig = structure.RabbitConfig{}
+	r.lastConfig = Config{}
 	r.publishers = make(map[string]*publisher)
 	r.publishersConfiguration = make(map[string]PublisherCfg)
 	r.consumers = make(map[string]consumer)
