@@ -1,6 +1,7 @@
 package ibm
 
 import (
+	"context"
 	"sync"
 
 	"github.com/integration-system/go-amqp"
@@ -29,8 +30,8 @@ func (d *Delivery) Nack() *Delivery {
 func (d *Delivery) Release() error {
 	defer d.wg.Done()
 	if d.ack {
-		return d.delivery.Accept()
+		return d.delivery.Accept(context.TODO())
 	} else {
-		return d.delivery.Release()
+		return d.delivery.Release(context.TODO())
 	}
 }

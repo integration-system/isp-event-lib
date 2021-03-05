@@ -65,6 +65,12 @@ func (r *reconnectableClient) UpdateOptions(opts *options) {
 	defer r.lock.Unlock()
 
 	r.opts = opts
+
+	// когда пришел новый конфиг, но еще ни разу не удалось подключиться
+	if r.cli == nil || r.ses == nil {
+		return
+	}
+
 	err := r.initPubsCons()
 	if err != nil {
 		// есть подозрение что если обновить не получилось, то коннект тоже должен отвалиться,
