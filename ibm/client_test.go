@@ -108,7 +108,7 @@ func TestClient_Reconnect(t *testing.T) {
 	acks := int32(0)
 	consumerErrors := int32(0)
 
-	cli, _ := createTestClient(queueName,
+	cli, _, _ := createTestClient(queueName,
 		func(delivery Delivery) {
 			atomic.AddInt32(&acks, 1)
 			data := delivery.GetMessage().GetData()
@@ -147,7 +147,7 @@ func TestClient_ReconnectAfterFirstFail(t *testing.T) {
 
 	a.NoError(activemqCtx.StopContainer(10 * time.Second))
 
-	cli, _ := createTestClient(queueName,
+	cli, cfg, opts := createTestClient(queueName,
 		func(delivery Delivery) {
 			atomic.AddInt32(&acks, 1)
 			data := delivery.GetMessage().GetData()
@@ -159,6 +159,9 @@ func TestClient_ReconnectAfterFirstFail(t *testing.T) {
 		},
 	)
 	defer cli.Close()
+
+	time.Sleep(time.Second)
+	cli.ReceiveConfiguration(cfg, opts...)
 
 	time.Sleep(time.Second)
 	a.NoError(activemqCtx.StartContainer())
@@ -190,7 +193,7 @@ func TestClient_UpdateOptions(t *testing.T) {
 		atomic.AddInt32(&consumerErrors, 1)
 	}
 
-	cli, cfg := createTestClient(queueName,
+	cli, cfg, _ := createTestClient(queueName,
 		callback,
 		errorHandler,
 	)
@@ -227,7 +230,7 @@ func TestClient_UpdateOptions(t *testing.T) {
 }
 
 func createTestClient(queueName string, callback func(delivery Delivery), errorHandler func(err error),
-) (*AMQPClient, Config) {
+) (*AMQPClient, Config, []Option) {
 	publishers := map[string]mq.PublisherCfg{
 		queueName: {
 			RoutingKey: queueName,
@@ -252,7 +255,8 @@ func createTestClient(queueName string, callback func(delivery Delivery), errorH
 	}
 
 	cli := NewAMQPClient()
-	cli.ReceiveConfiguration(cfg, WithPublishers(publishers), WithConsumers(consumers))
+	opts := []Option{WithPublishers(publishers), WithConsumers(consumers)}
+	cli.ReceiveConfiguration(cfg, opts...)
 
-	return cli, cfg
+	return cli, cfg, opts
 }
