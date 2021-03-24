@@ -190,6 +190,8 @@ func (c *Client) Close() {
 		consumer.close()
 	}
 	c.lastConfig = Config{}
+	c.saslMechanism = nil
+	c.tlsConfig = nil
 	c.publishers = make(map[string]*publisher)
 	c.publishersConfiguration = make(map[string]PublisherCfg)
 	c.consumers = make(map[string]*consumer)

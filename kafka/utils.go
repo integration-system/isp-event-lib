@@ -54,7 +54,7 @@ func getTlsConfig(tlsConf *TlsConfiguration) (*tls.Config, error) {
 	tlsConfig := tls.Config{}
 	cert, err := tls.X509KeyPair(clientCert, clientKey)
 	if err != nil {
-		return &tlsConfig, err
+		return nil, err
 	}
 	tlsConfig.Certificates = []tls.Certificate{cert}
 
