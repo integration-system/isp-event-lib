@@ -92,33 +92,6 @@ func (c *consumer) close() {
 	}
 }
 
-func (c *consumer) createReader(consumerCfg ConsumerCfg, addrs []string, kafkaAuth *Authentication) {
-	readerCfg := makeReaderCfg(consumerCfg)
-
-	readerCfg.Brokers = addrs
-	readerCfg.Topic = consumerCfg.TopicName
-	readerCfg.GroupID = consumerCfg.GroupID
-	readerCfg.QueueCapacity = consumerCfg.PrefetchCount
-
-	if kafkaAuth != nil {
-		readerCfg.Dialer = &kafka.Dialer{SASLMechanism: getSASL(kafkaAuth)}
-	}
-
-	if consumerCfg.Callback == nil {
-		log.Fatalf(0, "no callback was set to ConsumerCfg")
-	}
-	if consumerCfg.ErrorHandler == nil {
-		log.Fatalf(0, "no ErrorHandler was set to ConsumerCfg")
-	}
-	c.callback = consumerCfg.Callback
-	c.errorHandler = consumerCfg.ErrorHandler
-
-	readerCfg.StartOffset = kafka.LastOffset
-	readerCfg.ErrorLogger = logger{loggerPrefix: fmt.Sprintf("[consumer %s]", c.name)}
-
-	c.reader = kafka.NewReader(readerCfg)
-}
-
 func makeReaderCfg(consumerCfg ConsumerCfg) kafka.ReaderConfig {
 	if consumerCfg.AdvancedCfg == nil {
 		return kafka.ReaderConfig{}

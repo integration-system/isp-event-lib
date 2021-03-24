@@ -2,6 +2,10 @@ package kafka
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
+	"fmt"
 	"time"
 
 	"github.com/integration-system/isp-event-lib/event"
@@ -29,7 +33,39 @@ func (l logger) Printf(format string, args ...interface{}) {
 	log.Errorf(0, l.loggerPrefix+format, args...)
 }
 
-func getSASL(kafkaAuth *Authentication) sasl.Mechanism {
+func getTlsConfig(tlsConf *TlsConfiguration) (*tls.Config, error) {
+	if tlsConf == nil {
+		return nil, nil
+	}
+
+	serverCert, err := base64.StdEncoding.DecodeString(tlsConf.ServerCert)
+	if err != nil {
+		return nil, fmt.Errorf("can't decode ServerCert: %v", err)
+	}
+	clientCert, err := base64.StdEncoding.DecodeString(tlsConf.ClientCert)
+	if err != nil {
+		return nil, fmt.Errorf("can't decode ClientCert: %v", err)
+	}
+	clientKey, err := base64.StdEncoding.DecodeString(tlsConf.ClientKey)
+	if err != nil {
+		return nil, fmt.Errorf("can't decode ClientKey: %v", err)
+	}
+
+	tlsConfig := tls.Config{}
+	cert, err := tls.X509KeyPair(clientCert, clientKey)
+	if err != nil {
+		return nil, err
+	}
+	tlsConfig.Certificates = []tls.Certificate{cert}
+
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(serverCert)
+	tlsConfig.RootCAs = caCertPool
+
+	return &tlsConfig, nil
+}
+
+func getSASL(kafkaAuth *Authentication) *sasl.Mechanism {
 	if kafkaAuth == nil {
 		return nil
 	}
@@ -53,7 +89,7 @@ func getSASL(kafkaAuth *Authentication) sasl.Mechanism {
 	default:
 		log.Fatalf(0, "by Kafka auth type set: %s", kafkaAuth.AuthType)
 	}
-	return saslMechanism
+	return &saslMechanism
 }
 
 func getScrumAlgo(algirithm string) scram.Algorithm {
@@ -85,5 +121,5 @@ func tryDial(addressCfgs []event.AddressConfiguration) (string, error) {
 			return adr, nil
 		}
 	}
-	return "", errors.New("can't connect to all brokers addresses configurations")
+	return "", errors.New("can't connect to any brokers addresses configurations")
 }

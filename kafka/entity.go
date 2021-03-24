@@ -7,12 +7,19 @@ import (
 type Config struct {
 	AddressCfgs []event.AddressConfiguration `valid:"required~Required" schema:"Адреса Kafka"`
 	KafkaAuth   *Authentication              `schema:"Настройка аутентификации, если требуется"`
+	TlsConfig   *TlsConfiguration            `schema:"Кодированные в base64 сертификаты, если требуется"`
 }
 
 type Authentication struct {
 	AuthType string `schema:"Тип аутентификации" valid:"required~Required in(plain|scram_sha256|scram_sha512)"`
 	User     string `schema:"Логин" valid:"required~Required"`
 	Password string `schema:"Пароль" valid:"required~Required"`
+}
+
+type TlsConfiguration struct {
+	ServerCert string `schema:"Сертификат сервера Kafka в base64" valid:"required~Required"`
+	ClientCert string `schema:"Сертификат клиента в base64" valid:"required~Required"`
+	ClientKey  string `schema:"Ключ клиента в base64" valid:"required~Required"`
 }
 
 type ServicePublisherCfg struct {
