@@ -1,4 +1,4 @@
-package nats
+package nats_test
 
 import (
 	"os"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/integration-system/isp-event-lib/client"
+	"github.com/integration-system/isp-event-lib/client/nats"
 	"github.com/integration-system/isp-event-lib/event"
 	"github.com/integration-system/isp-lib-test/ctx"
 	"github.com/integration-system/isp-lib-test/docker"
@@ -62,7 +63,7 @@ func setup(_ *ctx.TestContext, runTest func() int) int {
 func TestNatsEventBustClient_NewConsumer(t *testing.T) {
 	assert := assert.New(t)
 
-	cli, err := NewNatsEventBusClient(Config{
+	cli, err := nats.NewNatsEventBusClient(nats.Config{
 		ClusterId: "test-cluster",
 		Address: event.AddressConfiguration{
 			Port: "4222",
@@ -116,7 +117,7 @@ func TestNatsEventBustClient_NewConsumer(t *testing.T) {
 func TestNatsEventBustClient_NewExclusiveConsumer(t *testing.T) {
 	assert := assert.New(t)
 
-	cli, err := NewNatsEventBusClient(Config{
+	cli, err := nats.NewNatsEventBusClient(nats.Config{
 		ClusterId: "test-cluster",
 		Address: event.AddressConfiguration{
 			Port: "4222",
