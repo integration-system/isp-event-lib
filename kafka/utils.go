@@ -121,5 +121,5 @@ func tryDial(addressCfgs []event.AddressConfiguration) (string, error) {
 			return adr, nil
 		}
 	}
-	return "", errors.New("can't connect to any brokers addresses configurations")
+	return "", errors.New("can't connect to any kafka brokers addresses configurations")
 }
