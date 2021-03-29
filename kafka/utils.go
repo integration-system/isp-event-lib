@@ -54,7 +54,7 @@ func getTlsConfig(tlsConf *TlsConfiguration) (*tls.Config, error) {
 	tlsConfig := tls.Config{}
 	cert, err := tls.X509KeyPair(clientCert, clientKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to parse client certificate keypair: %v", err)
 	}
 	tlsConfig.Certificates = []tls.Certificate{cert}
 
@@ -87,18 +87,19 @@ func getSASL(kafkaAuth *Authentication) *sasl.Mechanism {
 			log.Fatalf(0, "can't set auth mechanism by error: %v", err)
 		}
 	default:
-		log.Fatalf(0, "by Kafka auth type set: %s", kafkaAuth.AuthType)
+		log.Fatalf(0, "unknown Kafka auth type: %s", kafkaAuth.AuthType)
 	}
 	return &saslMechanism
 }
 
-func getScrumAlgo(algirithm string) scram.Algorithm {
-	if algirithm == AuthTypeScramSha256 {
+func getScrumAlgo(algorithm string) scram.Algorithm {
+	switch algorithm {
+	case AuthTypeScramSha256:
 		return scram.SHA256
-	} else if algirithm == AuthTypeScramSha256 {
+	case AuthTypeScramSha512:
 		return scram.SHA512
-	} else {
-		panic("Scrum type mismatch")
+	default:
+		panic("Scrum type mismatch: " + algorithm)
 	}
 }
 
