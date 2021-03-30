@@ -1,11 +1,12 @@
 package mq
 
 import (
+	"sync"
+	"time"
+
 	"github.com/integration-system/cony"
 	"github.com/integration-system/isp-lib/v2/atomic"
 	"github.com/streadway/amqp"
-	"sync"
-	"time"
 )
 
 type consumer interface {
@@ -87,7 +88,8 @@ func (c *byOneConsumer) awaitCancel(timeout time.Duration) {
 
 func (c *byOneConsumer) doWait() (waitComplete bool) {
 	defer func() {
-		r := recover() //panic("sync: WaitGroup is reused before previous Wait has returned")
+		// panic "sync: WaitGroup is reused before previous Wait has returned"
+		r := recover()
 		if r != nil {
 			waitComplete = false
 		}

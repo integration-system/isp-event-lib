@@ -50,7 +50,7 @@ func setup(_ *ctx.TestContext, runTest func() int) int {
 			"8222": "8222",
 		}),
 	)
-	defer natsCtx.Close()
+	defer natsCtx.Close() //nolint
 	if err != nil {
 		panic(err)
 	}
@@ -169,15 +169,9 @@ func TestNatsEventBustClient_NewExclusiveConsumer(t *testing.T) {
 }
 
 func awaitConsuming(consumer client.Consumer, wg *sync.WaitGroup, consumed *int32, assert *assert.Assertions) {
-	for {
-		select {
-		case msg, ok := <-consumer.Messages():
-			if !ok {
-				return
-			}
-			assert.NoError(msg.Ack())
-			atomic.AddInt32(consumed, 1)
-			wg.Done()
-		}
+	for msg := range consumer.Messages() {
+		assert.NoError(msg.Ack())
+		atomic.AddInt32(consumed, 1)
+		wg.Done()
 	}
 }

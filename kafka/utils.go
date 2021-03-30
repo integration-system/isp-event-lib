@@ -51,7 +51,7 @@ func getTlsConfig(tlsConf *TlsConfiguration) (*tls.Config, error) {
 		return nil, fmt.Errorf("can't decode ClientKey: %v", err)
 	}
 
-	tlsConfig := tls.Config{}
+	tlsConfig := tls.Config{MinVersion: tls.VersionTLS12}
 	cert, err := tls.X509KeyPair(clientCert, clientKey)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse client certificate keypair: %v", err)

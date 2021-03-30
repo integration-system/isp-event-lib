@@ -131,7 +131,8 @@ func (c *batchConsumer) awaitCancel(timeout time.Duration) {
 
 func (c *batchConsumer) doWait() (waitComplete bool) {
 	defer func() {
-		r := recover() //panic("sync: WaitGroup is reused before previous Wait has returned")
+		// panic "sync: WaitGroup is reused before previous Wait has returned"
+		r := recover()
 		if r != nil {
 			waitComplete = false
 		}

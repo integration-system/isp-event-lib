@@ -9,6 +9,6 @@ type AddressConfiguration struct {
 	Port string `json:"port" schema:"Порт"`
 }
 
-func (AddressConfiguration *AddressConfiguration) GetAddress() string {
-	return net.JoinHostPort(AddressConfiguration.IP, AddressConfiguration.Port)
+func (ac *AddressConfiguration) GetAddress() string {
+	return net.JoinHostPort(ac.IP, ac.Port)
 }

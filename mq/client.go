@@ -51,7 +51,7 @@ func (r *RabbitMqClient) ReceiveConfiguration(rabbitConfig Config, opts ...Optio
 		)
 		err := cli.Ping(time.Second)
 		if err != nil {
-			log.Fatal(stdcodes.InitializingRabbitMqError, err)
+			log.Panic(stdcodes.InitializingRabbitMqError, err)
 		}
 		r.cli = cli
 		r.lastConfig = rabbitConfig
@@ -172,13 +172,13 @@ func (r *RabbitMqClient) makePublisher(publisher PublisherCfg) *publisher {
 	return createPublisher(newPublisher)
 }
 
+//nolint:funlen
 func (r *RabbitMqClient) declare(cfg DeclareCfg) {
 	if cmp.Equal(r.declareConfiguration, cfg) {
 		return
 	}
 
 	declares := make([]cony.Declaration, 0)
-
 	queues := make(map[string]*cony.Queue)
 	for _, queue := range cfg.Queues {
 		if queue.Name == "" {

@@ -50,7 +50,7 @@ func (c *Client) ReceiveConfiguration(kafkaConfig Config, opts ...Option) {
 		c.Close()
 		c.validBrokerAddress, err = tryDial(kafkaConfig.AddressCfgs)
 		if err != nil {
-			log.Fatalf(0, "%v: %v", err, kafkaConfig.AddressCfgs)
+			log.Panicf(0, "%v: %v", err, kafkaConfig.AddressCfgs)
 		}
 		c.lastConfig = kafkaConfig
 		c.addresses = getAddresses(kafkaConfig)
@@ -58,7 +58,7 @@ func (c *Client) ReceiveConfiguration(kafkaConfig Config, opts ...Option) {
 		c.saslMechanism = getSASL(kafkaConfig.KafkaAuth)
 		c.tlsConfig, err = getTlsConfig(kafkaConfig.TlsConfig)
 		if err != nil {
-			log.Fatalf(0, "received tls configuration can't be used: %v", err)
+			log.Panicf(0, "received tls configuration can't be used: %v", err)
 		}
 	}
 
