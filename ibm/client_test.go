@@ -53,7 +53,7 @@ func setup(_ *ctx.TestContext, runTest func() int) int {
 			"127.0.0.3:8161": "8161", // UI
 		}),
 	)
-	defer activemqCtx.Close()
+	defer activemqCtx.Close() //nolint
 	if err != nil {
 		panic(err)
 	}
@@ -88,7 +88,7 @@ func TestAmqpClient_ConnOnUnexpectedDisconnect(t *testing.T) {
 	a.NoError(cli.Close())
 	a.EqualValues(0, atomic.LoadInt32(&connErrors))
 
-	cli, err = amqp.Dial(cfg.GetUri(), connOpts...)
+	_, err = amqp.Dial(cfg.GetUri(), connOpts...)
 	a.NoError(err)
 	a.EqualValues(0, atomic.LoadInt32(&connErrors))
 

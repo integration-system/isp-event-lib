@@ -1,4 +1,4 @@
-package nats
+package nats_test
 
 import (
 	"os"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/integration-system/isp-event-lib/client"
+	"github.com/integration-system/isp-event-lib/client/nats"
 	"github.com/integration-system/isp-event-lib/event"
 	"github.com/integration-system/isp-lib-test/ctx"
 	"github.com/integration-system/isp-lib-test/docker"
@@ -49,7 +50,7 @@ func setup(_ *ctx.TestContext, runTest func() int) int {
 			"8222": "8222",
 		}),
 	)
-	defer natsCtx.Close()
+	defer natsCtx.Close() //nolint
 	if err != nil {
 		panic(err)
 	}
@@ -62,7 +63,7 @@ func setup(_ *ctx.TestContext, runTest func() int) int {
 func TestNatsEventBustClient_NewConsumer(t *testing.T) {
 	assert := assert.New(t)
 
-	cli, err := NewNatsEventBusClient(Config{
+	cli, err := nats.NewNatsEventBusClient(nats.Config{
 		ClusterId: "test-cluster",
 		Address: event.AddressConfiguration{
 			Port: "4222",
@@ -116,7 +117,7 @@ func TestNatsEventBustClient_NewConsumer(t *testing.T) {
 func TestNatsEventBustClient_NewExclusiveConsumer(t *testing.T) {
 	assert := assert.New(t)
 
-	cli, err := NewNatsEventBusClient(Config{
+	cli, err := nats.NewNatsEventBusClient(nats.Config{
 		ClusterId: "test-cluster",
 		Address: event.AddressConfiguration{
 			Port: "4222",
@@ -168,15 +169,9 @@ func TestNatsEventBustClient_NewExclusiveConsumer(t *testing.T) {
 }
 
 func awaitConsuming(consumer client.Consumer, wg *sync.WaitGroup, consumed *int32, assert *assert.Assertions) {
-	for {
-		select {
-		case msg, ok := <-consumer.Messages():
-			if !ok {
-				return
-			}
-			assert.NoError(msg.Ack())
-			atomic.AddInt32(consumed, 1)
-			wg.Done()
-		}
+	for msg := range consumer.Messages() {
+		assert.NoError(msg.Ack())
+		atomic.AddInt32(consumed, 1)
+		wg.Done()
 	}
 }

@@ -76,9 +76,9 @@ func (c *byOneConsumer) awaitCancel(timeout time.Duration) {
 	}
 }
 
-//panic("sync: WaitGroup is reused before previous Wait has returned")
 func (c *byOneConsumer) doWait() (waitComplete bool) {
 	defer func() {
+		// panic "sync: WaitGroup is reused before previous Wait has returned"
 		r := recover()
 		if r != nil {
 			waitComplete = false

@@ -115,7 +115,6 @@ func (c *natsEventBustClient) notifyError(err error) {
 	select {
 	case c.errorsCh <- err:
 	default:
-
 	}
 }
 
