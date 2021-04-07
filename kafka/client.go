@@ -122,7 +122,7 @@ func (c *Client) newConsumers(config map[string]ConsumerCfg) (map[string]*consum
 
 func (c *Client) makePublisher(publisherCfg PublisherCfg, namePublisher string) *publisher {
 	publisher := &publisher{writer: newWriter(publisherCfg)}
-	publisher.writer.Addr = kafka.TCP(c.validBrokerAddress)
+	publisher.writer.Addr = kafka.TCP(c.addresses...)
 	if transport := c.newSecureTransport(); transport != nil {
 		publisher.writer.Transport = transport
 	}
