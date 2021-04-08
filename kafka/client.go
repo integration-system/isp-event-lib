@@ -24,8 +24,7 @@ type Client struct {
 	saslMechanism *sasl.Mechanism
 	tlsConfig     *tls.Config
 
-	validBrokerAddress string
-	lock               sync.Mutex
+	lock sync.Mutex
 }
 
 func NewClient() *Client {
@@ -48,13 +47,8 @@ func (c *Client) ReceiveConfiguration(kafkaConfig Config, opts ...Option) {
 	var err error
 	if !cmp.Equal(c.lastConfig, kafkaConfig) {
 		c.Close()
-		c.validBrokerAddress, err = tryDial(kafkaConfig.AddressCfgs)
-		if err != nil {
-			log.Panicf(0, "%v: %v", err, kafkaConfig.AddressCfgs)
-		}
 		c.lastConfig = kafkaConfig
 		c.addresses = getAddresses(kafkaConfig)
-
 		c.saslMechanism = getSASL(kafkaConfig.KafkaAuth)
 		c.tlsConfig, err = getTlsConfig(kafkaConfig.TlsConfig)
 		if err != nil {
@@ -197,5 +191,4 @@ func (c *Client) Close() {
 	c.consumers = make(map[string]*consumer)
 	c.consumersConfiguration = make(map[string]ConsumerCfg)
 	c.addresses = nil
-	c.validBrokerAddress = ""
 }

@@ -1,17 +1,12 @@
 package kafka
 
 import (
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
-	"time"
 
-	"github.com/integration-system/isp-event-lib/event"
 	log "github.com/integration-system/isp-log"
-	"github.com/pkg/errors"
-	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/segmentio/kafka-go/sasl/scram"
@@ -21,8 +16,6 @@ const (
 	AuthTypePlain       = "plain"
 	AuthTypeScramSha256 = "scram_sha256"
 	AuthTypeScramSha512 = "scram_sha512"
-
-	dialTimeout = 2 * time.Second
 )
 
 type logger struct {
@@ -109,18 +102,4 @@ func getAddresses(kafkaConfig Config) []string {
 		addresses = append(addresses, adrCfg.GetAddress())
 	}
 	return addresses
-}
-
-func tryDial(addressCfgs []event.AddressConfiguration) (string, error) {
-	for _, adrCfg := range addressCfgs {
-		adr := adrCfg.GetAddress()
-		ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
-		conn, err := kafka.DialContext(ctx, "tcp", adr)
-		cancel()
-		if err == nil && conn != nil {
-			_ = conn.Close()
-			return adr, nil
-		}
-	}
-	return "", errors.New("can't connect to any kafka brokers addresses configurations")
 }
