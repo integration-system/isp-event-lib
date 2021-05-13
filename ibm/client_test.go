@@ -38,14 +38,17 @@ func TestMain(m *testing.M) {
 	test.PrepareAndRun()
 }
 
-func setup(_ *ctx.TestContext, runTest func() int) int {
+func setup(testCtx *ctx.TestContext, runTest func() int) int {
 	cli, err := docker.NewClient()
 	if err != nil {
 		panic(err)
 	}
 	defer cli.Close()
-	activemqCtx, err = cli.RunContainer(
-		activemqImage,
+	env := docker.NewTestEnvironment(testCtx, cli)
+	defer env.Cleanup()
+
+	activemqCtx = env.RunAppContainer(
+		activemqImage, nil, nil,
 		docker.PullImage("", ""),
 		docker.WithLogger(os.Stdout),
 		docker.WithPortBindings(map[string]string{
@@ -53,12 +56,7 @@ func setup(_ *ctx.TestContext, runTest func() int) int {
 			"127.0.0.3:8161": "8161", // UI
 		}),
 	)
-	defer activemqCtx.Close() //nolint
-	if err != nil {
-		panic(err)
-	}
-
-	time.Sleep(3 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	return runTest()
 }

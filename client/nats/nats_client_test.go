@@ -35,14 +35,17 @@ func TestMain(m *testing.M) {
 	test.PrepareAndRun()
 }
 
-func setup(_ *ctx.TestContext, runTest func() int) int {
+func setup(testCtx *ctx.TestContext, runTest func() int) int {
 	cli, err := docker.NewClient()
 	if err != nil {
 		panic(err)
 	}
 	defer cli.Close()
-	natsCtx, err := cli.RunContainer(
-		natsImage,
+	env := docker.NewTestEnvironment(testCtx, cli)
+	defer env.Cleanup()
+
+	env.RunAppContainer(
+		natsImage, nil, nil,
 		docker.PullImage("", ""),
 		docker.WithLogger(os.Stdout),
 		docker.WithPortBindings(map[string]string{
@@ -50,12 +53,7 @@ func setup(_ *ctx.TestContext, runTest func() int) int {
 			"8222": "8222",
 		}),
 	)
-	defer natsCtx.Close() //nolint
-	if err != nil {
-		panic(err)
-	}
-
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	return runTest()
 }
