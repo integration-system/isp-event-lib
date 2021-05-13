@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/integration-system/cony"
-	"github.com/integration-system/isp-lib/v2/atomic"
 )
 
 type ConsumerCfg interface {
@@ -26,12 +25,13 @@ func (c ByOneConsumerCfg) getCommon() CommonConsumerCfg {
 
 func (c ByOneConsumerCfg) createConsumer(conyConsumer *cony.Consumer, reConsume func(*cony.Consumer)) consumer {
 	return &byOneConsumer{
-		consumer:     conyConsumer,
-		callback:     c.Callback,
-		errorHandler: c.ErrorHandler,
-		close:        atomic.NewAtomicBool(false),
-		reConsume:    reConsume,
-		bo:           cony.DefaultBackoff,
+		consumer:        conyConsumer,
+		callback:        c.Callback,
+		errorHandler:    c.ErrorHandler,
+		closeCh:         make(chan struct{}),
+		startReturnedCh: make(chan struct{}),
+		reConsume:       reConsume,
+		bo:              cony.DefaultBackoff,
 	}
 }
 
@@ -51,14 +51,14 @@ func (c BatchingConsumerCfg) getCommon() CommonConsumerCfg {
 
 func (c BatchingConsumerCfg) createConsumer(conyConsumer *cony.Consumer, reConsume func(*cony.Consumer)) consumer {
 	return &batchConsumer{
-		consumer:     conyConsumer,
-		onBatch:      c.Callback,
-		purgeTimeout: c.PurgeTimeoutMs * time.Millisecond,
-		size:         c.BatchSize,
-		errorHandler: c.ErrorHandler,
-		closed:       atomic.NewAtomicBool(false),
-		closeCh:      make(chan struct{}),
-		reConsume:    reConsume,
-		bo:           cony.DefaultBackoff,
+		consumer:        conyConsumer,
+		onBatch:         c.Callback,
+		purgeTimeout:    c.PurgeTimeoutMs * time.Millisecond,
+		size:            c.BatchSize,
+		errorHandler:    c.ErrorHandler,
+		closeCh:         make(chan struct{}),
+		startReturnedCh: make(chan struct{}),
+		reConsume:       reConsume,
+		bo:              cony.DefaultBackoff,
 	}
 }
