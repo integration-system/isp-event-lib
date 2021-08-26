@@ -215,11 +215,6 @@ func (r *RabbitMqClient) declare(cfg DeclareCfg) {
 				"type":     exchange.Kind,
 			}).Fatal(stdcodes.InitializingRabbitMqError, "declare unexpected exchange kind")
 		}
-		if _, found := exchanges[exchange.Name]; found {
-			log.WithMetadata(map[string]interface{}{
-				"exchange": exchange.Name,
-			}).Fatal(stdcodes.InitializingRabbitMqError, "declare duplicate exchange name")
-		}
 		durable := true
 		if exchange.Durable != nil {
 			durable = *exchange.Durable
