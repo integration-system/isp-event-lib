@@ -59,7 +59,7 @@ func (pc PublisherCfg) GetDefaultDeclarations() DeclareCfg {
 		if pc.DeadLetter {
 			queue.Args = make(map[string]interface{}, 1)
 			queue.Args[deadLetterArg] = commonDeadLetterExchange
-			declarations.addDeadLetterDeclarations(pc.RoutingKey)
+			declarations.AddDeadLetterDeclarations(pc.RoutingKey)
 		}
 		declarations.Queues = append(declarations.Queues, queue)
 	}
@@ -93,7 +93,7 @@ func (dc DeclareCfg) Join(add DeclareCfg) DeclareCfg {
 	}
 }
 
-func (dc *DeclareCfg) addDeadLetterDeclarations(name string) {
+func (dc *DeclareCfg) AddDeadLetterDeclarations(name string) {
 	dur := true
 	dlqName := name + dlQueueSuffix
 
