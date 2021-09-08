@@ -24,9 +24,8 @@ type batchConsumer struct {
 	size         int
 	purgeTimeout time.Duration
 
-	closed  *atomic.AtomicBool
-	closeCh chan struct{}
-	wg      sync.WaitGroup
+	close *atomic.AtomicBool
+	wg    sync.WaitGroup
 
 	reConsume func(consumer *cony.Consumer)
 	bo        cony.Backoffer
@@ -48,11 +47,8 @@ func (c *batchConsumer) start() {
 
 	for {
 		select {
-		case <-c.closeCh:
-			c.handleBatch(deliveries[0:currentSize])
-			return
 		case delivery, open := <-c.consumer.Deliveries():
-			if c.closed.Get() {
+			if c.close.Get() {
 				c.handleBatch(deliveries[0:currentSize])
 				return
 			}
@@ -69,9 +65,8 @@ func (c *batchConsumer) start() {
 				c.handleBatch(deliveries)
 				currentSize = 0
 			}
-			attempt = 0
 		case err := <-c.consumer.Errors():
-			if c.closed.Get() {
+			if c.close.Get() {
 				c.handleBatch(deliveries[0:currentSize])
 				return
 			}
@@ -88,7 +83,7 @@ func (c *batchConsumer) start() {
 				c.errorHandler(err)
 			}
 		case <-purgeTicker.C:
-			if c.closed.Get() {
+			if c.close.Get() {
 				c.handleBatch(deliveries[0:currentSize])
 				return
 			}
@@ -100,8 +95,7 @@ func (c *batchConsumer) start() {
 }
 
 func (c *batchConsumer) stop() {
-	close(c.closeCh)
-	c.closed.Set(true)
+	c.close.Set(true)
 }
 
 func (c *batchConsumer) handleBatch(deliveries []Delivery) {
@@ -113,8 +107,8 @@ func (c *batchConsumer) handleBatch(deliveries []Delivery) {
 
 func (c *batchConsumer) awaitCancel(timeout time.Duration) {
 	defer func() {
-		c.consumer.Cancel()
 		c.awaitStopDelivery(timeout)
+		c.consumer.Cancel()
 	}()
 
 	wait := make(chan struct{})
