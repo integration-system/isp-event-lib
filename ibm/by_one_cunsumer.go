@@ -25,13 +25,11 @@ type byOneConsumer struct {
 	callback     func(delivery Delivery)
 	errorHandler func(error)
 
-	close           *atomic.AtomicBool
-	startReturnedCh chan struct{}
-	wg              sync.WaitGroup
+	close *atomic.AtomicBool
+	wg    sync.WaitGroup
 }
 
 func (c *byOneConsumer) start() {
-	defer close(c.startReturnedCh)
 	for !c.close.Get() {
 		message, err := c.consumer.Receive(c.ctx)
 		if err != nil {
@@ -54,26 +52,40 @@ func (c *byOneConsumer) stop() {
 }
 
 func (c *byOneConsumer) awaitCancel(timeout time.Duration) {
-	ctx, cancelFunc := context.WithTimeout(context.Background(), timeout)
-	defer cancelFunc()
 	defer func() {
+		ctx, cancelFunc := context.WithTimeout(context.Background(), timeout)
+		defer cancelFunc()
 		_ = c.consumer.Close(ctx)
 	}()
 
-	waitWgCh := make(chan struct{})
+	wait := make(chan struct{})
 	go func() {
-		c.wg.Wait()
-		close(waitWgCh)
+		for {
+			if c.doWait() {
+				close(wait)
+				return
+			}
+		}
 	}()
 
 	select {
-	case <-c.startReturnedCh:
-	case <-ctx.Done():
+	case <-time.After(timeout):
+		return
+	case <-wait:
 		return
 	}
+}
 
-	select {
-	case <-waitWgCh:
-	case <-ctx.Done():
-	}
+func (c *byOneConsumer) doWait() (waitComplete bool) {
+	defer func() {
+		// panic "sync: WaitGroup is reused before previous Wait has returned"
+		r := recover()
+		if r != nil {
+			waitComplete = false
+		}
+	}()
+
+	waitComplete = true
+	c.wg.Wait()
+	return waitComplete
 }
