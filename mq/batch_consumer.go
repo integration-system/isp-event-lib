@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/integration-system/isp-lib/v2/atomic"
 	"github.com/streadway/amqp"
 
 	"github.com/integration-system/cony"
@@ -23,16 +24,14 @@ type batchConsumer struct {
 	size         int
 	purgeTimeout time.Duration
 
-	closeCh         chan struct{}
-	startReturnedCh chan struct{}
-	wg              sync.WaitGroup
+	close *atomic.AtomicBool
+	wg    sync.WaitGroup
 
 	reConsume func(consumer *cony.Consumer)
 	bo        cony.Backoffer
 }
 
 func (c *batchConsumer) start() {
-	defer close(c.startReturnedCh)
 	if c.size <= 0 {
 		c.size = defaultSize
 	}
@@ -45,28 +44,15 @@ func (c *batchConsumer) start() {
 
 	deliveries := make([]Delivery, c.size)
 	currentSize, attempt := 0, 0
-	handleBatch := func() {
-		batch := deliveries[0:currentSize]
-		if len(batch) == 0 {
-			return
-		}
-		c.onBatch(batch)
-		currentSize = 0
-	}
-	defer handleBatch()
 
 	for {
-		// set priority to close channel to avoid random choice in next select
 		select {
-		case <-c.closeCh:
-			return
-		default:
-		}
-
-		select {
-		case <-c.closeCh:
-			return
 		case delivery, open := <-c.consumer.Deliveries():
+			if c.close.Get() {
+				c.handleBatch(deliveries[0:currentSize])
+				return
+			}
+
 			if !open {
 				continue
 			}
@@ -76,9 +62,15 @@ func (c *batchConsumer) start() {
 			currentSize++
 
 			if currentSize%c.size == 0 {
-				handleBatch()
+				c.handleBatch(deliveries)
+				currentSize = 0
 			}
 		case err := <-c.consumer.Errors():
+			if c.close.Get() {
+				c.handleBatch(deliveries[0:currentSize])
+				return
+			}
+
 			if e, ok := err.(*amqp.Error); ok {
 				if e.Code == amqp.NotFound {
 					attempt++
@@ -91,33 +83,75 @@ func (c *batchConsumer) start() {
 				c.errorHandler(err)
 			}
 		case <-purgeTicker.C:
-			handleBatch()
+			if c.close.Get() {
+				c.handleBatch(deliveries[0:currentSize])
+				return
+			}
+
+			c.handleBatch(deliveries[0:currentSize])
+			currentSize = 0
 		}
 	}
 }
 
 func (c *batchConsumer) stop() {
-	close(c.closeCh)
+	c.close.Set(true)
+}
+
+func (c *batchConsumer) handleBatch(deliveries []Delivery) {
+	if len(deliveries) == 0 {
+		return
+	}
+	c.onBatch(deliveries)
 }
 
 func (c *batchConsumer) awaitCancel(timeout time.Duration) {
-	defer c.consumer.Cancel()
+	defer func() {
+		c.awaitStopDelivery(timeout)
+		c.consumer.Cancel()
+	}()
 
-	timeoutCh := time.After(timeout)
-	waitWgCh := make(chan struct{})
+	wait := make(chan struct{})
 	go func() {
-		c.wg.Wait()
-		close(waitWgCh)
+		for {
+			if c.doWait() {
+				close(wait)
+				return
+			}
+		}
 	}()
 
 	select {
-	case <-c.startReturnedCh:
-	case <-timeoutCh:
+	case <-time.After(timeout):
+		return
+	case <-wait:
 		return
 	}
+}
 
-	select {
-	case <-waitWgCh:
-	case <-timeoutCh:
+func (c *batchConsumer) doWait() (waitComplete bool) {
+	defer func() {
+		// panic "sync: WaitGroup is reused before previous Wait has returned"
+		r := recover()
+		if r != nil {
+			waitComplete = false
+		}
+	}()
+
+	waitComplete = true
+	c.wg.Wait()
+	return waitComplete
+}
+
+func (c *batchConsumer) awaitStopDelivery(timeout time.Duration) {
+	for {
+		select {
+		case _, open := <-c.consumer.Deliveries():
+			if !open {
+				return
+			}
+		case <-time.After(timeout):
+			return
+		}
 	}
 }
