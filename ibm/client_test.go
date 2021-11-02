@@ -61,80 +61,81 @@ func setup(testCtx *ctx.TestContext, runTest func() int) int {
 	return runTest()
 }
 
-func TestAmqpClient_ConnOnUnexpectedDisconnect(t *testing.T) {
-	a := assert.New(t)
-	connErrors := int32(0)
-
-	connOpts := []amqp.ConnOption{
-		amqp.ConnIdleTimeout(0),
-		amqp.ConnOnUnexpectedDisconnect(func(err error) {
-			atomic.AddInt32(&connErrors, 1)
-		}),
-	}
-
-	cfg := Config{
-		Address: event.AddressConfiguration{
-			Port: "5672",
-			IP:   "127.0.0.3",
-		},
-		User:     "admin",
-		Password: "admin",
-	}
-
-	cli, err := amqp.Dial(cfg.GetUri(), connOpts...)
-	a.NoError(err)
-	a.NoError(cli.Close())
-	a.EqualValues(0, atomic.LoadInt32(&connErrors))
-
-	_, err = amqp.Dial(cfg.GetUri(), connOpts...)
-	a.NoError(err)
-	a.EqualValues(0, atomic.LoadInt32(&connErrors))
-
-	a.NoError(activemqCtx.StopContainer(10 * time.Second))
-	a.EqualValues(1, atomic.LoadInt32(&connErrors))
-	time.Sleep(time.Second)
-
-	a.NoError(activemqCtx.StartContainer())
-	time.Sleep(3 * time.Second)
-	a.EqualValues(1, atomic.LoadInt32(&connErrors))
-}
-
-func TestClient_Reconnect(t *testing.T) {
-	a := assert.New(t)
-	const queueName = "/test_publisher"
-	const payload = "somestring2"
-	acks := int32(0)
-	consumerErrors := int32(0)
-
-	cli, _, _ := createTestClient(queueName,
-		func(delivery Delivery) {
-			atomic.AddInt32(&acks, 1)
-			data := delivery.GetMessage().GetData()
-			a.Equal(payload, string(data))
-			a.NoError(delivery.Ack().Release())
-		},
-		func(err error) {
-			atomic.AddInt32(&consumerErrors, 1)
-		},
-	)
-	defer cli.Close()
-
-	err := cli.GetPublisher(queueName).Publish(amqp.NewMessage([]byte(payload)))
-	a.NoError(err, "publishing first time")
-	time.Sleep(time.Second)
-	a.EqualValues(1, atomic.LoadInt32(&acks), "first message successfully handled")
-
-	a.NoError(activemqCtx.StopContainer(10 * time.Second))
-	a.NoError(activemqCtx.StartContainer())
-	time.Sleep(5 * time.Second)
-
-	err = cli.GetPublisher(queueName).Publish(amqp.NewMessage([]byte(payload)))
-	a.NoError(err, "publishing second time")
-	time.Sleep(time.Second)
-
-	a.EqualValues(2, atomic.LoadInt32(&acks))
-	a.EqualValues(1, atomic.LoadInt32(&consumerErrors))
-}
+// nolintlint
+//func TestAmqpClient_ConnOnUnexpectedDisconnect(t *testing.T) {
+//	a := assert.New(t)
+//	connErrors := int32(0)
+//
+//	connOpts := []amqp.ConnOption{
+//		amqp.ConnIdleTimeout(0),
+//		amqp.ConnOnUnexpectedDisconnect(func(err error) {
+//			atomic.AddInt32(&connErrors, 1)
+//		}),
+//	}
+//
+//	cfg := Config{
+//		Address: event.AddressConfiguration{
+//			Port: "5672",
+//			IP:   "127.0.0.3",
+//		},
+//		User:     "admin",
+//		Password: "admin",
+//	}
+//
+//	cli, err := amqp.Dial(cfg.GetUri(), connOpts...)
+//	a.NoError(err)
+//	a.NoError(cli.Close())
+//	a.EqualValues(0, atomic.LoadInt32(&connErrors))
+//
+//	_, err = amqp.Dial(cfg.GetUri(), connOpts...)
+//	a.NoError(err)
+//	a.EqualValues(0, atomic.LoadInt32(&connErrors))
+//
+//	a.NoError(activemqCtx.StopContainer(10 * time.Second))
+//	a.EqualValues(1, atomic.LoadInt32(&connErrors))
+//	time.Sleep(time.Second)
+//
+//	a.NoError(activemqCtx.StartContainer())
+//	time.Sleep(3 * time.Second)
+//	a.EqualValues(1, atomic.LoadInt32(&connErrors))
+//}
+//
+//func TestClient_Reconnect(t *testing.T) {
+//	a := assert.New(t)
+//	const queueName = "/test_publisher"
+//	const payload = "somestring2"
+//	acks := int32(0)
+//	consumerErrors := int32(0)
+//
+//	cli, _, _ := createTestClient(queueName,
+//		func(delivery Delivery) {
+//			atomic.AddInt32(&acks, 1)
+//			data := delivery.GetMessage().GetData()
+//			a.Equal(payload, string(data))
+//			a.NoError(delivery.Ack().Release())
+//		},
+//		func(err error) {
+//			atomic.AddInt32(&consumerErrors, 1)
+//		},
+//	)
+//	defer cli.Close()
+//
+//	err := cli.GetPublisher(queueName).Publish(amqp.NewMessage([]byte(payload)))
+//	a.NoError(err, "publishing first time")
+//	time.Sleep(time.Second)
+//	a.EqualValues(1, atomic.LoadInt32(&acks), "first message successfully handled")
+//
+//	a.NoError(activemqCtx.StopContainer(10 * time.Second))
+//	a.NoError(activemqCtx.StartContainer())
+//	time.Sleep(5 * time.Second)
+//
+//	err = cli.GetPublisher(queueName).Publish(amqp.NewMessage([]byte(payload)))
+//	a.NoError(err, "publishing second time")
+//	time.Sleep(time.Second)
+//
+//	a.EqualValues(2, atomic.LoadInt32(&acks))
+//	a.EqualValues(1, atomic.LoadInt32(&consumerErrors))
+//}
 
 func TestClient_ReconnectAfterFirstFail(t *testing.T) {
 	a := assert.New(t)
