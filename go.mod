@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/google/go-cmp v0.5.5
 	github.com/integration-system/cony v0.3.0
-	github.com/integration-system/go-amqp v0.13.61
+	github.com/integration-system/go-amqp v0.14.0
 	github.com/integration-system/isp-lib-test v1.7.0
 	github.com/integration-system/isp-lib/v2 v2.10.0
 	github.com/integration-system/isp-log v1.1.8

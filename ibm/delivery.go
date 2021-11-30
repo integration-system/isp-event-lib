@@ -9,6 +9,7 @@ import (
 
 type Delivery struct {
 	delivery *amqp.Message
+	receiver *amqp.Receiver
 	wg       *sync.WaitGroup
 	ack      bool
 }
@@ -30,8 +31,8 @@ func (d *Delivery) Nack() *Delivery {
 func (d *Delivery) Release() error {
 	defer d.wg.Done()
 	if d.ack {
-		return d.delivery.Accept(context.TODO())
+		return d.receiver.AcceptMessage(context.TODO(), d.delivery)
 	} else {
-		return d.delivery.Release(context.TODO())
+		return d.receiver.ReleaseMessage(context.TODO(), d.delivery)
 	}
 }

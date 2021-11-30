@@ -42,7 +42,12 @@ func (c *byOneConsumer) start() {
 			return
 		}
 		c.wg.Add(1)
-		c.callback(Delivery{wg: &c.wg, delivery: message})
+		delivery := Delivery{
+			wg:       &c.wg,
+			receiver: c.consumer,
+			delivery: message,
+		}
+		c.callback(delivery)
 	}
 }
 
