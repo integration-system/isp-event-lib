@@ -148,6 +148,7 @@ func (r *reconnectableClient) initClient() error {
 	if r.opts.connContainerId != "" {
 		connOpts = append(connOpts, amqp.ConnContainerID(r.opts.connContainerId))
 	}
+	connOpts = append(connOpts, r.opts.connOptions...)
 
 	cli, err := amqp.Dial(r.RabbitConfig.GetUri(), connOpts...)
 	if err != nil {

@@ -1,8 +1,10 @@
 package ibm
 
 import (
-	"github.com/integration-system/isp-event-lib/mq"
 	"time"
+
+	"github.com/integration-system/go-amqp"
+	"github.com/integration-system/isp-event-lib/mq"
 )
 
 const defaultTimeout = 10 * time.Second
@@ -14,11 +16,18 @@ type options struct {
 	publishersConfiguration map[string]mq.PublisherCfg
 	connContainerId         string
 	timeout                 time.Duration
+	connOptions             []amqp.ConnOption
 }
 
 func WithConnContainerID(id string) Option {
 	return func(opt *options) {
 		opt.connContainerId = id
+	}
+}
+
+func WithConnOptions(opts ...amqp.ConnOption) Option {
+	return func(opt *options) {
+		opt.connOptions = opts
 	}
 }
 
